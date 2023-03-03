@@ -38,7 +38,7 @@ deactivate () {
 # unset irrelevant variables
 deactivate nondestructive
 
-VIRTUAL_ENV="c:\Users\diego\OneDrive\Bureau\BachelorArbeit\Code\venv"
+VIRTUAL_ENV="c:\Users\DLafeuille\Desktop\BachelorArbeit\CVT-OCR-code\venv"
 export VIRTUAL_ENV
 
 _OLD_VIRTUAL_PATH="$PATH"
