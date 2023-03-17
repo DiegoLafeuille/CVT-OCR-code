@@ -94,4 +94,4 @@ cv2.waitKey(0)
 # cv2.imshow(winname, thresh)
 # cv2.waitKey(0)
 
-print(image_data['text'])
+# print(image_data['text'])
