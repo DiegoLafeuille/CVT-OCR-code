@@ -1,5 +1,6 @@
 import cv2
 from pytesseract import pytesseract
+from PIL import Image
 
 
 def ResizeWithAspectRatio(image, width=None, height=None, inter=cv2.INTER_AREA):
