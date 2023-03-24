@@ -1,10 +1,11 @@
 # Training set
 train_val_images
 
+# Accuracy test results
+*_accuracy_test.txt
 
-
-
-
+# ocr results
+results.csv
 
 
 

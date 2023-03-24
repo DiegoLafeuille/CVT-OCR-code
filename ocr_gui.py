@@ -4,6 +4,7 @@ import numpy as np
 import easyocr
 from PIL import Image, ImageTk
 from tkinter_webcam import webcam
+from ocr_code import process_webcam_feed
 
 class OCR_GUI:
 
@@ -11,32 +12,19 @@ class OCR_GUI:
         self.master = master
         self.master.title("OCR GUI")
 
-        self.image = cv2.imread("images/cvt_spectrometer_zoomed.jpg")
-        self.image = cv2.cvtColor(self.image, cv2.COLOR_BGR2RGB)
-        
+        self.canvas_max_width = 750
+        self.canvas_max_height = 600
 
-        canvas_max_width = 750
-        canvas_max_height = 650
-
-        # get and resize the image while maintaining its aspect ratio
-        self.image = cv2.imread("images/cvt_spectrometer_zoomed.jpg")
-        self.image = cv2.cvtColor(self.image, cv2.COLOR_BGR2RGB)
-        aspect_ratio = self.image.shape[1] / self.image.shape[0]
-        new_height = int(canvas_max_height)
-        new_width = int(new_height * aspect_ratio)
-        if new_width > canvas_max_width:
-            new_width = canvas_max_width
-            new_height = int(new_width / aspect_ratio)
-        self.image = cv2.resize(self.image, (new_width, new_height))
-        self.photo = self.get_image()
-
-        self.left_frame = tk.Frame(master, bg='grey', width=canvas_max_width)
+        self.left_frame = tk.Frame(master, bg='grey', width=750)
         self.left_frame.pack(side=tk.LEFT, fill='both', padx=15, pady=15)
 
-        self.canvas = tk.Canvas(self.left_frame, bd=2, bg="grey", width=new_width, height=new_height)
+        self.canvas = tk.Canvas(self.left_frame, bd=2, bg="grey", width=self.canvas_max_width, height=self.canvas_max_height)
         self.canvas.pack(side=tk.TOP, padx=15, pady=15)
 
-        self.canvas.create_image(new_width/2, new_height/2, anchor=tk.CENTER, image=self.photo)
+        self.canvas_image = self.canvas.create_image(self.canvas_max_width/2, self.canvas_max_height/2, anchor=tk.CENTER)
+        
+        self.webcam = cv2.VideoCapture(0)
+        self.refresh_image()
         
         self.refresh_button = tk.Button(self.left_frame, text="Refresh", command=self.refresh_image)
         self.refresh_button.pack(side=tk.BOTTOM, anchor='s', padx=15)
@@ -103,8 +91,6 @@ class OCR_GUI:
         label.place(x=label_x, y=label_y, anchor='center')
         self.rect_drawing_labels.append(label)
 
-
-
         # deletes a rectangle if respective button clicked
         def delete_rect(rect_number, btn):
             rect_id = self.rectangles_drawing[rect_number-1]
@@ -135,33 +121,49 @@ class OCR_GUI:
         self.rect_delete.append(delete_btn)
 
         # placing the label and entry in the required position using grid method
-        self.rect_labels[-1].grid(row=rect_number-1,column=0)
-        self.rect_entries[-1].grid(row=rect_number-1,column=1)
-        self.rect_delete[-1].grid(row=rect_number-1,column=2)
+        self.rect_labels[-1].grid(row=rect_number-1,column=0, sticky='w')
+        self.rect_entries[-1].grid(row=rect_number-1,column=1, sticky='w'+'e')
+        self.rect_delete[-1].grid(row=rect_number-1,column=2, sticky='e')
 
     def read_text(self):
-        # use EasyOCR to read the text within the selected rectangles
-        reader = easyocr.Reader(['en'])
-        for i, rect in enumerate(self.rectangles):
-            if rect == None: continue
-            
-            x1, y1, x2, y2 = rect
-            # crop the image to the rectangle
-            cropped_image = self.image[y1:y2, x1:x2]
-            # convert the image to grayscale
-            gray_image = cv2.cvtColor(cropped_image, cv2.COLOR_RGB2GRAY)
-            # read the text from the grayscale image
-            result = {
-                'Variable': self.rect_entries[i].get(), 
-                'Text': reader.readtext(gray_image)[0][1]
-                }
-            print(result)
 
+        roi_list = [{'variable': var.get(), 'ROI': rectangle} for var, rectangle in zip(self.rect_entries, self.rectangles) if rectangle is not None]
+        print(roi_list)
+        process_webcam_feed(roi_list)
+
+    
     def refresh_image(self):
-        pass
+        ret, frame = self.webcam.read()  # read a new frame from the webcam
+        if not ret:  # if reading fails
+            return
+        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)  # convert to RGB format
+
+        aspect_ratio = frame.shape[1] / frame.shape[0]
+        new_height = int(self.canvas_max_height)
+        new_width = int(new_height * aspect_ratio)
+        if new_width > self.canvas_max_width:
+            new_width = self.canvas_max_width
+            new_height = int(new_width / aspect_ratio)
+
+        frame = cv2.resize(frame, (new_width, new_height))
+        image = Image.fromarray(frame)
+        self.photo = ImageTk.PhotoImage(image)
+        self.canvas.itemconfig(self.canvas_image, image=self.photo)  # update the canvas image
+
+
+
 
 root = tk.Tk()
 root.geometry = ("1080x720")
 root.config(bg="skyblue")
 gui = OCR_GUI(root)
 root.mainloop()
+
+
+
+# #%% Find USB devices
+# import win32com.client
+ 
+# wmi = win32com.client.GetObject ("winmgmts:")
+# for usb in wmi.InstancesOf ("Win32_USBHub"):
+#     print(usb.DeviceID)
