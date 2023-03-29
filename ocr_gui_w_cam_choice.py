@@ -1,4 +1,5 @@
 import tkinter as tk
+from tkinter import ttk
 import cv2
 import numpy as np
 import easyocr
@@ -25,12 +26,21 @@ class OCR_GUI:
 
         self.canvas_image = self.canvas.create_image(self.canvas_max_width/2, self.canvas_max_height/2, anchor=tk.CENTER)
         
-        self.cap = cv2.VideoCapture(0)
+        self.camera_names = get_available_cameras()
+        self.camera_dropdown = ttk.Combobox(self.right_frame, value = self.camera_names)
+        self.camera_dropdown.current(0)
+        self.selected_camera = tk.StringVar()
+        self.selected_camera.set(int(self.camera_dropdown.get()))
+        self.camera_dropdown.pack(side=tk.TOP, padx=15, pady=15)
+
+        self.cap = cv2.VideoCapture(self.selected_camera)
         self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 300)
         self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 300)
+
         self.video_label = tk.Label(self.right_frame)
         self.video_label.pack()
         self.show_camera()
+        # self.update_camera_feed()
         self.refresh_image()
         
         self.refresh_button = tk.Button(self.left_frame, text="Refresh", command=self.refresh_image)
@@ -56,8 +66,6 @@ class OCR_GUI:
         self.rect_delete = []
 
         self.results = []
-
-
 
 
 
@@ -150,6 +158,18 @@ class OCR_GUI:
         self.canvas.itemconfig(self.canvas_image, image=self.photo)  # update the canvas image
 
     def show_camera(self):
+
+        if self.selected_camera != int(self.camera_dropdown.get()):
+            self.selected_camera = int(self.camera_dropdown.get())
+            self.cap.release()
+
+            # Start a new video capture with the selected camera
+            self.cap = cv2.VideoCapture(int(self.camera_dropdown.get()))
+            self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 300)
+            self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 300)
+
+
+
         # Get the latest frame and convert into Image
         cv2image= cv2.cvtColor(self.cap.read()[1],cv2.COLOR_BGR2RGB)
         img = Image.fromarray(cv2image)
@@ -158,9 +178,20 @@ class OCR_GUI:
         self.video_label.imgtk = imgtk
         self.video_label.configure(image=imgtk)
         # Repeat after an interval to capture continiously
-        self.video_label.after(20, self.show_camera)
+        self.video_label.after(10, self.show_camera)
    
 
+def get_available_cameras():
+    available_cameras = []
+    index = 0
+    cap = cv2.VideoCapture(index, cv2.CAP_DSHOW)
+    while cap.isOpened():
+        available_cameras.append(index)
+        ret, frame = cap.read()
+        cap.release()
+        index += 1
+        cap = cv2.VideoCapture(index, cv2.CAP_DSHOW)
+    return available_cameras
 
 root = tk.Tk()
 root.bind('<Escape>', lambda e: root.quit())
