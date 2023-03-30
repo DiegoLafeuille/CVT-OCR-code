@@ -1,65 +1,72 @@
 import tkinter as tk
+from tkinter import ttk
 import cv2
-import numpy as np
-import easyocr
 from PIL import Image, ImageTk
 from ocr_code import process_webcam_feed
 
 class OCR_GUI:
 
     def __init__(self, master):
+
+        # Main window
         self.master = master
         self.master.title("OCR GUI")
 
-        self.canvas_max_width = 750
-        self.canvas_max_height = 600
-
+        # Left frame
         self.left_frame = tk.Frame(master, bg='grey', width=750)
         self.left_frame.pack(side=tk.LEFT, fill='both', padx=15, pady=15)
 
+        # Right frame
         self.right_frame = tk.Frame(master, bg='grey', width=300)
         self.right_frame.pack(side=tk.RIGHT, fill='both', padx=15, pady=15)
 
+        # Image canvas
+        self.canvas_max_width = 750
+        self.canvas_max_height = 600
         self.canvas = tk.Canvas(self.left_frame, bd=2, bg="grey", width=self.canvas_max_width, height=self.canvas_max_height)
         self.canvas.pack(side=tk.TOP, padx=15, pady=15)
-
         self.canvas_image = self.canvas.create_image(self.canvas_max_width/2, self.canvas_max_height/2, anchor=tk.CENTER)
         
-        self.cap = cv2.VideoCapture(0)
+        # Camera choice dropdown menu
+        self.camera_names = get_available_cameras()
+        self.camera_dropdown = ttk.Combobox(self.right_frame, value = self.camera_names)
+        self.camera_dropdown.current(0)
+        self.selected_camera = int(self.camera_dropdown.get())
+        self.camera_dropdown.pack(side=tk.TOP, padx=15, pady=15)
+
+        # Video feed
+        self.cap = cv2.VideoCapture(self.selected_camera)
         self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 300)
         self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 300)
         self.video_label = tk.Label(self.right_frame)
         self.video_label.pack()
         self.show_camera()
-        self.refresh_image()
         
+        # Image capture refresh w/ button
+        self.refresh_image()
         self.refresh_button = tk.Button(self.left_frame, text="Refresh", command=self.refresh_image)
         self.refresh_button.pack(side=tk.BOTTOM, anchor='s', padx=15)
 
+        # Rectangle drawings on canvas
         self.rectangles = []
         self.rectangles_drawing = []
         self.rect_drawing_labels = []
-        self.labels = []  # initialize the labels list
-
+        self.labels = []
         self.canvas.bind("<ButtonPress-1>", self.on_button_press)
         self.canvas.bind("<B1-Motion>", self.on_move_press)
         self.canvas.bind("<ButtonRelease-1>", self.on_button_release)
 
+        # Rectangle variable names list
         self.list_frame = tk.Frame(self.right_frame, bg='white', width=300, height=300)
         self.list_frame.pack(side=tk.TOP, fill='x', padx=15, pady=15)
-
-        self.button = tk.Button(self.right_frame, text="Read Text", command=self.read_text)
-        self.button.pack(side=tk.BOTTOM, anchor='s', padx=15, pady=15)
-
         self.rect_labels = []
         self.rect_entries = []
         self.rect_delete = []
 
+        # Start OCR button
+        self.button = tk.Button(self.right_frame, text="Start OCR", command=self.start_ocr)
+        self.button.pack(side=tk.BOTTOM, anchor='s', padx=15, pady=15)
         self.results = []
-
-
-
-
 
     def on_button_press(self, event):
         self.start_x = self.canvas.canvasx(event.x)
@@ -125,11 +132,11 @@ class OCR_GUI:
         self.rect_entries[-1].grid(row=rect_number-1,column=1, sticky='w'+'e')
         self.rect_delete[-1].grid(row=rect_number-1,column=2, sticky='e')
 
-    def read_text(self):
-
+    def start_ocr(self):
+        
+        # Build ROI list
         roi_list = [{'variable': var.get(), 'ROI': rectangle} for var, rectangle in zip(self.rect_entries, self.rectangles) if rectangle is not None]
-        print(roi_list)
-        process_webcam_feed(roi_list)
+        process_webcam_feed(roi_list, self.selected_camera)
  
     def refresh_image(self):
         ret, frame = self.cap.read()  # read a new frame from the webcam
@@ -150,6 +157,18 @@ class OCR_GUI:
         self.canvas.itemconfig(self.canvas_image, image=self.photo)  # update the canvas image
 
     def show_camera(self):
+
+        if self.selected_camera != int(self.camera_dropdown.get()):
+            self.selected_camera = int(self.camera_dropdown.get())
+            self.cap.release()
+
+            # Start a new video capture with the selected camera
+            self.cap = cv2.VideoCapture(int(self.camera_dropdown.get()))
+            self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 300)
+            self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 300)
+
+
+
         # Get the latest frame and convert into Image
         cv2image= cv2.cvtColor(self.cap.read()[1],cv2.COLOR_BGR2RGB)
         img = Image.fromarray(cv2image)
@@ -158,8 +177,20 @@ class OCR_GUI:
         self.video_label.imgtk = imgtk
         self.video_label.configure(image=imgtk)
         # Repeat after an interval to capture continiously
-        self.video_label.after(20, self.show_camera)
+        self.video_label.after(10, self.show_camera)
    
+
+def get_available_cameras():
+    available_cameras = []
+    index = 0
+    cap = cv2.VideoCapture(index, cv2.CAP_DSHOW)
+    while cap.isOpened():
+        available_cameras.append(index)
+        ret, frame = cap.read()
+        cap.release()
+        index += 1
+        cap = cv2.VideoCapture(index, cv2.CAP_DSHOW)
+    return available_cameras
 
 
 root = tk.Tk()

@@ -5,7 +5,7 @@ import easyocr
 import datetime
 
 
-def process_webcam_feed(roi_list):
+def process_webcam_feed(roi_list, selected_cam):
     # Create the csv file and write the headers
     with open('results.csv', mode='w', newline='') as file:
         fieldnames = ['Timestamp'] + [roi['variable'] for roi in roi_list]
@@ -13,7 +13,7 @@ def process_webcam_feed(roi_list):
         writer.writeheader()
 
     # Initialize the video capture device and the OCR reader
-    cap = cv2.VideoCapture(0)
+    cap = cv2.VideoCapture(selected_cam)
     reader = easyocr.Reader(['en'], gpu=False)
 
     # Continuously capture frames from the webcam and extract text from the ROIs
