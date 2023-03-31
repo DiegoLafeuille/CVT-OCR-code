@@ -25,7 +25,7 @@ class OCR_GUI:
         self.canvas_max_height = 600
         self.canvas = tk.Canvas(self.left_frame, bd=2, bg="grey", width=self.canvas_max_width, height=self.canvas_max_height)
         self.canvas.pack(side=tk.TOP, padx=15, pady=15)
-        self.canvas_image = self.canvas.create_image(self.canvas_max_width/2, self.canvas_max_height/2, anchor=tk.CENTER)
+        self.canvas_image = self.canvas.create_image(0, 0, anchor=tk.NW)
         
         # Camera choice dropdown menu
         self.camera_names = get_available_cameras()
@@ -136,7 +136,7 @@ class OCR_GUI:
         
         # Build ROI list
         roi_list = [{'variable': var.get(), 'ROI': rectangle} for var, rectangle in zip(self.rect_entries, self.rectangles) if rectangle is not None]
-        process_webcam_feed(roi_list, self.selected_camera)
+        process_webcam_feed(roi_list, self.selected_camera, self.new_width, self.new_height)
  
     def refresh_image(self):
         ret, frame = self.cap.read()  # read a new frame from the webcam
@@ -151,10 +151,17 @@ class OCR_GUI:
             new_width = self.canvas_max_width
             new_height = int(new_width / aspect_ratio)
 
+        self.new_width = new_width
+        self.new_height = new_height
+
+        # Adjust the canvas size to match the image size
+        self.canvas.config(width=new_width, height=new_height)
+
         frame = cv2.resize(frame, (new_width, new_height))
         image = Image.fromarray(frame)
         self.photo = ImageTk.PhotoImage(image)
-        self.canvas.itemconfig(self.canvas_image, image=self.photo)  # update the canvas image
+        self.canvas.itemconfig(self.canvas_image, image=self.photo)
+        self.canvas.config(scrollregion=self.canvas.bbox(self.canvas_image))  # adjust the scroll region to the image size
 
     def show_camera(self):
 
