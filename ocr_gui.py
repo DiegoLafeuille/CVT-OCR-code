@@ -30,15 +30,20 @@ class OCR_GUI:
         # Camera choice dropdown menu
         self.camera_names = get_available_cameras()
         self.camera_dropdown = ttk.Combobox(self.right_frame, value = self.camera_names)
-        self.camera_dropdown.current(0)
+        self.camera_dropdown.current(1)
         self.selected_camera = int(self.camera_dropdown.get())
         self.camera_dropdown.pack(side=tk.TOP, padx=15, pady=15)
 
         # Video feed
         self.cap = cv2.VideoCapture(self.selected_camera)
-        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 300)
-        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 300)
-        self.video_label = tk.Label(self.right_frame)
+        width = self.cap.get(cv2.CAP_PROP_FRAME_WIDTH)
+        height = self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
+        scale = min(1, 300 / height)
+        
+        # Resize the original image
+        self.resize_width = int(width * scale)
+        self.resize_height = int(height * scale)
+        self.video_label = tk.Label(self.right_frame, width=self.resize_width, height=self.resize_height)
         self.video_label.pack()
         self.show_camera()
         
@@ -131,12 +136,6 @@ class OCR_GUI:
         self.rect_labels[-1].grid(row=rect_number-1,column=0, sticky='w')
         self.rect_entries[-1].grid(row=rect_number-1,column=1, sticky='w'+'e')
         self.rect_delete[-1].grid(row=rect_number-1,column=2, sticky='e')
-
-    def start_ocr(self):
-        
-        # Build ROI list
-        roi_list = [{'variable': var.get(), 'ROI': rectangle} for var, rectangle in zip(self.rect_entries, self.rectangles) if rectangle is not None]
-        process_webcam_feed(roi_list, self.selected_camera, self.new_width, self.new_height)
  
     def refresh_image(self):
         ret, frame = self.cap.read()  # read a new frame from the webcam
@@ -171,20 +170,37 @@ class OCR_GUI:
 
             # Start a new video capture with the selected camera
             self.cap = cv2.VideoCapture(int(self.camera_dropdown.get()))
-            self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 300)
-            self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 300)
 
+            # Get the width and height of the original image
+            width = self.cap.get(cv2.CAP_PROP_FRAME_WIDTH)
+            height = self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
+            
+            # Calculate the scale factor to keep the aspect ratio and limit the height to 300
+            scale = min(1, 300 / height)
+            
+            # Resize the original image
+            self.resize_width = int(width * scale)
+            self.resize_height = int(height * scale)
 
 
         # Get the latest frame and convert into Image
         cv2image= cv2.cvtColor(self.cap.read()[1],cv2.COLOR_BGR2RGB)
-        img = Image.fromarray(cv2image)
+        cv2image_resized = cv2.resize(cv2image, (self.resize_width, self.resize_height))
+        
+        img = Image.fromarray(cv2image_resized)
         # Convert image to PhotoImage
-        imgtk = ImageTk.PhotoImage(image = img)
+        imgtk = ImageTk.PhotoImage(image=img)
         self.video_label.imgtk = imgtk
         self.video_label.configure(image=imgtk)
-        # Repeat after an interval to capture continiously
+        
+        # Repeat after an interval to capture continuously
         self.video_label.after(10, self.show_camera)
+
+    def start_ocr(self):
+        
+        # Build ROI list
+        roi_list = [{'variable': var.get(), 'ROI': rectangle} for var, rectangle in zip(self.rect_entries, self.rectangles) if rectangle is not None]
+        process_webcam_feed(roi_list, self.selected_camera, self.new_width, self.new_height)
    
 
 def get_available_cameras():
