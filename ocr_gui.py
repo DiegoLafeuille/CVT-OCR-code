@@ -30,7 +30,7 @@ class OCR_GUI:
         # Camera choice dropdown menu
         self.camera_names = get_available_cameras()
         self.camera_dropdown = ttk.Combobox(self.right_frame, value = self.camera_names)
-        self.camera_dropdown.current(1)
+        self.camera_dropdown.current(0)
         self.selected_camera = int(self.camera_dropdown.get())
         self.camera_dropdown.pack(side=tk.TOP, padx=15, pady=15)
 
