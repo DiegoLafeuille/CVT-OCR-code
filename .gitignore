@@ -7,6 +7,12 @@ train_val_images
 # ocr results
 results.csv
 
+# calibration images
+calib_img
+
+# Aruco marker images
+tags
+
 
 
 

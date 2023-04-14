@@ -1,7 +1,6 @@
 import tkinter as tk
 from tkinter import ttk
 import cv2
-import numpy as np
 from PIL import Image, ImageTk
 from ocr_code import process_webcam_feed
 
@@ -21,9 +20,6 @@ class OCR_GUI:
         self.right_frame = tk.Frame(master, bg='grey', width=300)
         self.right_frame.pack(side=tk.RIGHT, fill='both', padx=15, pady=15)
 
-        # Define the dictionary to use
-        self.dictionary = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_6X6_50)
-
         # Image canvas
         self.canvas_max_width = 750
         self.canvas_max_height = 600
@@ -34,7 +30,7 @@ class OCR_GUI:
         # Camera choice dropdown menu
         self.camera_names = get_available_cameras()
         self.camera_dropdown = ttk.Combobox(self.right_frame, value = self.camera_names)
-        self.camera_dropdown.current(1)
+        self.camera_dropdown.current(0)
         self.selected_camera = int(self.camera_dropdown.get())
         self.camera_dropdown.pack(side=tk.TOP, padx=15, pady=15)
 
@@ -51,7 +47,10 @@ class OCR_GUI:
         self.video_label.pack()
         self.show_camera()
         
-        self.show_rectified_camera()
+        # Image capture refresh w/ button
+        self.refresh_image()
+        self.refresh_button = tk.Button(self.left_frame, text="Refresh", command=self.refresh_image)
+        self.refresh_button.pack(side=tk.BOTTOM, anchor='s', padx=15)
 
         # Rectangle drawings on canvas
         self.rectangles = []
@@ -138,61 +137,10 @@ class OCR_GUI:
         self.rect_entries[-1].grid(row=rect_number-1,column=1, sticky='w'+'e')
         self.rect_delete[-1].grid(row=rect_number-1,column=2, sticky='e')
  
-    def show_rectified_camera(self):
-
-        if self.selected_camera != int(self.camera_dropdown.get()):
-            self.selected_camera = int(self.camera_dropdown.get())
-            self.cap.release()
-            self.cap = cv2.VideoCapture(int(self.camera_dropdown.get()))
-            
+    def refresh_image(self):
         ret, frame = self.cap.read()  # read a new frame from the webcam
         if not ret:  # if reading fails
             return
-
-        # Detect markers in the frame
-        corners, ids, _ = cv2.aruco.detectMarkers(frame, self.dictionary)
-
-        roi_corners = {}
-
-        # Draw detected markers and their IDs on the frame
-        if ids is not None:
-
-            for i, id in enumerate(ids):
-                if id == 1:
-                    roi_corners["A"] = [int(corners[i][0][2][0]), int(corners[i][0][2][1])] # Bottom right corner of ID 1
-                if id == 2:
-                    roi_corners["D"] = [int(corners[i][0][3][0]), int(corners[i][0][3][1])] # Bottom left corner of ID 2
-                if id == 3:
-                    roi_corners["C"] = [int(corners[i][0][0][0]), int(corners[i][0][0][1])] # Top left corner of ID 3
-                if id == 4:
-                    roi_corners["B"] = [int(corners[i][0][1][0]), int(corners[i][0][1][1])] # Top right corner of ID 4
-            
-            if 1 in ids and 2 in ids and 3 in ids and 4 in ids:
-
-                # Here, I have used L2 norm. You can use L1 also.
-                width_AD = np.sqrt(((roi_corners["A"][0] - roi_corners["D"][0]) ** 2) + ((roi_corners["A"][1] - roi_corners["D"][1]) ** 2))
-                width_BC = np.sqrt(((roi_corners["B"][0] - roi_corners["C"][0]) ** 2) + ((roi_corners["B"][1] - roi_corners["C"][1]) ** 2))
-                maxWidth = max(int(width_AD), int(width_BC))
-                # maxWidth = self.new_width
-                
-                height_AB = np.sqrt(((roi_corners["A"][0] - roi_corners["B"][0]) ** 2) + ((roi_corners["A"][1] - roi_corners["B"][1]) ** 2))
-                height_CD = np.sqrt(((roi_corners["C"][0] - roi_corners["D"][0]) ** 2) + ((roi_corners["C"][1] - roi_corners["D"][1]) ** 2))
-                maxHeight = max(int(height_AB), int(height_CD))
-                # maxHeight = self.new_height
-                
-                input_pts = np.float32([roi_corners["A"], roi_corners["B"], roi_corners["C"], roi_corners["D"]])
-                output_pts = np.float32([[0, 0],
-                                        [0, maxHeight - 1],
-                                        [maxWidth - 1, maxHeight - 1],
-                                        [maxWidth - 1, 0]])
-                
-                # Compute the perspective transform M
-                M = cv2.getPerspectiveTransform(input_pts,output_pts)
-                frame = cv2.warpPerspective(frame,M,(maxWidth, maxHeight),flags=cv2.INTER_LINEAR)
-            
-            else:
-                cv2.aruco.drawDetectedMarkers(frame, corners, ids)
-
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)  # convert to RGB format
 
         aspect_ratio = frame.shape[1] / frame.shape[0]
@@ -204,7 +152,7 @@ class OCR_GUI:
 
         self.new_width = new_width
         self.new_height = new_height
-    
+
         # Adjust the canvas size to match the image size
         self.canvas.config(width=new_width, height=new_height)
 
@@ -213,9 +161,6 @@ class OCR_GUI:
         self.photo = ImageTk.PhotoImage(image)
         self.canvas.itemconfig(self.canvas_image, image=self.photo)
         self.canvas.config(scrollregion=self.canvas.bbox(self.canvas_image))  # adjust the scroll region to the image size
-
-        # Repeat after an interval to capture continuously
-        self.canvas.after(330, self.show_rectified_camera)
 
     def show_camera(self):
 
@@ -239,11 +184,7 @@ class OCR_GUI:
 
 
         # Get the latest frame and convert into Image
-        frame = self.cap.read()[1]
-        # Detect markers in the frame
-        corners, ids, _ = cv2.aruco.detectMarkers(frame, self.dictionary)
-        cv2.aruco.drawDetectedMarkers(frame, corners, ids)
-        cv2image= cv2.cvtColor(frame,cv2.COLOR_BGR2RGB)
+        cv2image= cv2.cvtColor(self.cap.read()[1],cv2.COLOR_BGR2RGB)
         cv2image_resized = cv2.resize(cv2image, (self.resize_width, self.resize_height))
         
         img = Image.fromarray(cv2image_resized)
