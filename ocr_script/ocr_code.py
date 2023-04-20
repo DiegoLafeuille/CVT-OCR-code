@@ -8,6 +8,7 @@ import numpy as np
 
 def process_webcam_feed(frame, reader, roi_list, cols):
 
+    print(f"OCR: resolution: {frame.shape[1]}x{frame.shape[0]}")
     # Extract text from the ROIs using easyOCR
     texts = []
     timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')

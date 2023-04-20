@@ -119,8 +119,9 @@ class OCR_GUI:
         self.aruco_size_label = tk.Label(self.parameters_frame, text="Aruco marker size [meters]:")
         self.aruco_size_label.grid(row=3, column=0, padx=5, pady=5)
         self.aruco_size_entry = tk.Entry(self.parameters_frame)
+        self.aruco_size_entry.insert(-1, "0.04")
         self.aruco_size_entry.grid(row=3, column=1, padx=5, pady=5)
-        self.aruco_size = 0.08
+        self.aruco_size = 0.04
 
         def on_size_entry():
             try:
@@ -128,10 +129,11 @@ class OCR_GUI:
             except ValueError:
                 messagebox.showerror("Error", "Please enter a valid number for the aruco marker size.")
 
-        self.aruco_size_entry.bind("<Return>", lambda event: on_size_entry)
+        self.aruco_size_entry.bind("<Return>", lambda event: on_size_entry())
 
         # Video feed
         self.cap = cv2.VideoCapture(self.selected_camera_ch)
+        self.cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
         self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.calib_w)
         self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.calib_h)
         width = self.cap.get(cv2.CAP_PROP_FRAME_WIDTH)
@@ -257,6 +259,7 @@ class OCR_GUI:
 
             # Start a new video capture with the selected camera
             self.cap = cv2.VideoCapture(int(self.camera_ch_dropdown.get()))
+            self.cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
             self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.calib_w)
             self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.calib_h)
 
@@ -280,15 +283,16 @@ class OCR_GUI:
         corners, ids, _ = cv2.aruco.detectMarkers(frame, aruco_dict)
 
         # Draw A square around the markers
-        # aruco.drawDetectedMarkers(frame, corners)  
-        for i in range(len(ids)):
-            # get marker corners
-            pts = np.int32(corners[i][0])
-            # draw lines between corners
-            cv2.line(frame, tuple(pts[0]), tuple(pts[1]), (0, 255, 0), thickness=3)
-            cv2.line(frame, tuple(pts[1]), tuple(pts[2]), (0, 255, 0), thickness=3)
-            cv2.line(frame, tuple(pts[2]), tuple(pts[3]), (0, 255, 0), thickness=3)
-            cv2.line(frame, tuple(pts[3]), tuple(pts[0]), (0, 255, 0), thickness=3)
+        # aruco.drawDetectedMarkers(frame, corners) 
+        if np.all(ids is not None): 
+            for i in range(len(ids)):
+                # get marker corners
+                pts = np.int32(corners[i][0])
+                # draw lines between corners
+                cv2.line(frame, tuple(pts[0]), tuple(pts[1]), (0, 255, 0), thickness=3)
+                cv2.line(frame, tuple(pts[1]), tuple(pts[2]), (0, 255, 0), thickness=3)
+                cv2.line(frame, tuple(pts[2]), tuple(pts[3]), (0, 255, 0), thickness=3)
+                cv2.line(frame, tuple(pts[3]), tuple(pts[0]), (0, 255, 0), thickness=3)
 
         cv2image= cv2.cvtColor(frame,cv2.COLOR_BGR2RGB)
         cv2image_resized = cv2.resize(cv2image, (self.resize_width, self.resize_height))
@@ -303,36 +307,40 @@ class OCR_GUI:
         self.video_label.after(10, self.show_camera)
  
     def show_rectified_camera(self):
-
+        
+        # Check if camera channel changed
         if self.selected_camera_ch != int(self.camera_ch_dropdown.get()):
             self.selected_camera_ch = int(self.camera_ch_dropdown.get())
             self.cap.release()
             self.cap = cv2.VideoCapture(int(self.camera_ch_dropdown.get()))
+            self.cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
             self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.calib_w)
             self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.calib_h)
-            
-        ret, frame = self.cap.read()  # read a new frame from the webcam
-        if not ret:  # if reading fails
+        
+        # Read a new frame from the camera
+        ret, frame = self.cap.read()  
+        if not ret:  
             return
         
+        # Get video feed resolution
         width  = self.cap.get(cv2.CAP_PROP_FRAME_WIDTH)
         height = self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
         # print(f"Resolution = {width}x{height}")
-
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)  # Change grayscale
         
         # Detect markers in the frame
         aruco_dict = cv2.aruco.getPredefinedDictionary(ARUCO_DICT[self.aruco_dropdown.get()])
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)  
         corners, ids, _ = cv2.aruco.detectMarkers(gray, aruco_dict)
 
-        roi_corners = {}
+        # If there are markers found by detector
+        if np.all(ids is not None):  
 
-        # Draw detected markers and their IDs on the frame
-        if np.all(ids is not None):  # If there are markers found by detector
-
+            roi_corners = {}
             tvecs = []
             rvecs = []
-            for id in ids:  # Iterate in markers
+            
+            # Iterate over detected markers and estimate their pose
+            for id in ids:  
                 index = np.where(ids == id)[0][0]
                 if id == 1:
                     roi_corners["A"] = [int(corners[index][0][2][0]), int(corners[index][0][2][1])] # Bottom right corner of ID 1
@@ -343,91 +351,108 @@ class OCR_GUI:
                 if id == 4:
                     roi_corners["B"] = [int(corners[index][0][1][0]), int(corners[index][0][1][1])] # Top right corner of ID 4
 
-                # Estimate pose of each marker and return the values rvec and tvec---different from camera coefficients
+                # Estimate pose of each marker and return the values rvec and tvec
                 rvec, tvec, _ = aruco.estimatePoseSingleMarkers(corners[index], self.aruco_size, self.mtx, self.dist)
                 tvecs.append(tvec)
                 rvecs.append(rvec)
-                (rvec - tvec).any()  # get rid of that nasty numpy value array error
+                (rvec - tvec).any()  # get rid of numpy value array error
 
-                if not all(id in ids for id in [1,2,3,4]):
-                    cv2.drawFrameAxes(frame, self.mtx, self.dist, rvec, tvec, 0.1, 3)  # Draw Axis
-                    for corner in corners:
-                        cv2.putText(frame, 
-                                f"Dist: {round(np.linalg.norm(tvec[0][0]), 2)} m", 
-                                corner[0][1].astype(int), 
-                                cv2.FONT_HERSHEY_PLAIN, 1.3, (0, 0, 255), 2, 
-                                cv2.LINE_AA,
-                        )
-
-                                    
+            # If all four markers detected
             if all(id in ids for id in [1,2,3,4]):
 
                 #  Updating detected dimensions of object every 50 consecutive frames where all 4 markers are detected
                 if self.frame_counter % 50 == 0:
                     self.new_width, self.new_height = self.get_obj_dims(tvecs, ids)
                 self.frame_counter += 1
-
+                
+                # Compute the perspective transform M and warp frame
                 input_pts = np.float32([roi_corners["A"], roi_corners["B"], roi_corners["C"], roi_corners["D"]])
                 output_pts = np.float32([[0, 0],
                                         [0, self.new_height - 1],
                                         [self.new_width - 1, self.new_height - 1],
                                         [self.new_width - 1, 0]])
-                
-                # Compute the perspective transform M
                 M = cv2.getPerspectiveTransform(input_pts,output_pts)
                 frame = cv2.warpPerspective(frame,M,(self.new_width, self.new_height),flags=cv2.INTER_LINEAR)
             
-            
+            # If some but not all markers are detected
             else:
-                self.frame_counter = 0
-                
-                # Draw A square around the markers
-                # aruco.drawDetectedMarkers(frame, corners)  
-                for i in range(len(ids)):
-                    # get marker corners
-                    pts = np.int32(corners[i][0])
-                    # draw lines between corners
+                self.frame_counter = 0       
+
+                # Draw marker lines and distance
+                for i, corner in enumerate(corners):
+                    
+                    # Draw marker axes from pose estimation
+                    cv2.drawFrameAxes(frame, self.mtx, self.dist, rvecs[i], tvecs[i], 0.1, 3)
+                    
+                    # Draw lines between corners
+                    pts = np.int32(corner[0])
                     cv2.line(frame, tuple(pts[0]), tuple(pts[1]), (0, 255, 0), thickness=3)
                     cv2.line(frame, tuple(pts[1]), tuple(pts[2]), (0, 255, 0), thickness=3)
                     cv2.line(frame, tuple(pts[2]), tuple(pts[3]), (0, 255, 0), thickness=3)
                     cv2.line(frame, tuple(pts[3]), tuple(pts[0]), (0, 255, 0), thickness=3)
-                
+                    
+                    # Draw distance from camera to marker center
+                    cv2.putText(frame, 
+                            f"{round(np.linalg.norm(tvec[0][0]), 2)} m", 
+                            corner[0][1].astype(int), 
+                            cv2.FONT_HERSHEY_PLAIN, 3, (0, 0, 255), 2, 
+                            cv2.LINE_AA,
+                    )
+
+                # Calculate new image dimensions while keeping original ratio
                 scale = min(self.canvas_max_width / width, self.canvas_max_height / height)
                 self.new_width = int(width*scale)
                 self.new_height = int(height*scale)
                         
         else:
             self.frame_counter = 0
-            scale = min(self.canvas_max_height / width, self.canvas_max_height / height)
+
+            # Calculate new image dimensions while keeping original ratio
+            scale = min(self.canvas_max_width / width, self.canvas_max_height / height)
             self.new_width = int(width*scale)
             self.new_height = int(height*scale)
 
-        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)  # convert to RGB format
+        # Convert to RGB format
+        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
+        # Resize image with new dimensions
         frame = cv2.resize(frame, (self.new_width, self.new_height), interpolation=cv2.INTER_AREA)
+        # print(f"Resolution: {frame.shape[1]}x{frame.shape[0]}")
 
         # Adjust the canvas size to match the image size
         self.canvas.config(width=self.new_width, height=self.new_height)
 
+        # Display image in canvas
         image = Image.fromarray(frame)
         self.photo = ImageTk.PhotoImage(image)
         self.canvas.itemconfig(self.canvas_image, image=self.photo)
-        self.canvas.config(scrollregion=self.canvas.bbox(self.canvas_image))  # adjust the scroll region to the image size
+        # Adjust the scroll region to the image size
+        self.canvas.config(scrollregion=self.canvas.bbox(self.canvas_image)) 
 
-        # Call OCR function
+
+        # Call OCR function if Start button has been pushed
         if self.ocr_on:
+
+            # Create list of ROIs and column names
             roi_list = [{'variable': var.get(), 'ROI': rectangle} for var, rectangle in zip(self.rect_entries, self.rectangles) if rectangle is not None]
             cols = ['Timestamp'] + [roi['variable'] for roi in roi_list]
+            
+            # Create the csv file and write the headers if start button has just been pushed
             if self.ocr_count == 0:
-                # Create the csv file and write the headers
                 with open('results.csv', mode='w', newline='') as file:
                     writer = csv.DictWriter(file, fieldnames=cols)
                     writer.writeheader()
-            if ids is not None and not all(id in ids for id in [1,2,3,4]):
+            
+            # Indicate in OCR's result file if not all necessary markers have been detected
+            if ids is not None and not all(id in ids for id in [1,2,3,4]) or ids is None:
                 timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
                 with open('results.csv', mode='a', newline='') as file:
                     file.write(f"{timestamp},Not enough Aruco markers detected\n")
+            
+            # Call OCR function if all necessary markers have been detected 
             else:
                 process_webcam_feed(frame, self.reader, roi_list, cols)
+            
             self.ocr_count +=1
 
         # Repeat after an interval to capture continuously
