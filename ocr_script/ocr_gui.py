@@ -248,6 +248,59 @@ class OCR_GUI:
         self.rect_labels[-1].grid(row=rect_number-1,column=0, sticky='w')
         self.rect_entries[-1].grid(row=rect_number-1,column=1, sticky='w'+'e')
         self.rect_delete[-1].grid(row=rect_number-1,column=2, sticky='e')
+
+    def show_camera(self):
+
+        if self.selected_camera_ch != int(self.camera_ch_dropdown.get()):
+            self.selected_camera_ch = int(self.camera_ch_dropdown.get())
+            self.cap.release()
+
+            # Start a new video capture with the selected camera
+            self.cap = cv2.VideoCapture(int(self.camera_ch_dropdown.get()))
+            self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.calib_w)
+            self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.calib_h)
+
+            # Get the width and height of the original image
+            width = self.cap.get(cv2.CAP_PROP_FRAME_WIDTH)
+            height = self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
+            
+            # Calculate the scale factor to keep the aspect ratio and limit the height to 300
+            scale = min(1, 300 / height)
+            
+            # Resize the original image
+            self.resize_width = int(width * scale)
+            self.resize_height = int(height * scale)
+        
+        aruco_dict = cv2.aruco.getPredefinedDictionary(ARUCO_DICT[self.aruco_dropdown.get()])
+
+
+        # Get the latest frame and convert into Image
+        ret, frame = self.cap.read()
+        # Detect markers in the frame
+        corners, ids, _ = cv2.aruco.detectMarkers(frame, aruco_dict)
+
+        # Draw A square around the markers
+        # aruco.drawDetectedMarkers(frame, corners)  
+        for i in range(len(ids)):
+            # get marker corners
+            pts = np.int32(corners[i][0])
+            # draw lines between corners
+            cv2.line(frame, tuple(pts[0]), tuple(pts[1]), (0, 255, 0), thickness=3)
+            cv2.line(frame, tuple(pts[1]), tuple(pts[2]), (0, 255, 0), thickness=3)
+            cv2.line(frame, tuple(pts[2]), tuple(pts[3]), (0, 255, 0), thickness=3)
+            cv2.line(frame, tuple(pts[3]), tuple(pts[0]), (0, 255, 0), thickness=3)
+
+        cv2image= cv2.cvtColor(frame,cv2.COLOR_BGR2RGB)
+        cv2image_resized = cv2.resize(cv2image, (self.resize_width, self.resize_height))
+        
+        img = Image.fromarray(cv2image_resized)
+        # Convert image to PhotoImage
+        imgtk = ImageTk.PhotoImage(image=img)
+        self.video_label.imgtk = imgtk
+        self.video_label.configure(image=imgtk)
+        
+        # Repeat after an interval to capture continuously
+        self.video_label.after(10, self.show_camera)
  
     def show_rectified_camera(self):
 
@@ -262,8 +315,8 @@ class OCR_GUI:
         if not ret:  # if reading fails
             return
         
-        width  = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-        height = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        width  = self.cap.get(cv2.CAP_PROP_FRAME_WIDTH)
+        height = self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
         # print(f"Resolution = {width}x{height}")
 
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)  # Change grayscale
@@ -339,7 +392,7 @@ class OCR_GUI:
                     cv2.line(frame, tuple(pts[2]), tuple(pts[3]), (0, 255, 0), thickness=3)
                     cv2.line(frame, tuple(pts[3]), tuple(pts[0]), (0, 255, 0), thickness=3)
                 
-                scale = min(self.canvas_max_height / width, self.canvas_max_height / height)
+                scale = min(self.canvas_max_width / width, self.canvas_max_height / height)
                 self.new_width = int(width*scale)
                 self.new_height = int(height*scale)
                         
@@ -411,62 +464,7 @@ class OCR_GUI:
     
         # # Repeat after an interval to capture continuously
         # self.canvas.after(330, self.show_rectified_camera)
-
-    def show_camera(self):
-
-        if self.selected_camera_ch != int(self.camera_ch_dropdown.get()):
-            self.selected_camera_ch = int(self.camera_ch_dropdown.get())
-            self.cap.release()
-
-            # Start a new video capture with the selected camera
-            self.cap = cv2.VideoCapture(int(self.camera_ch_dropdown.get()))
-            self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.calib_w)
-            self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.calib_h)
-
-            # Get the width and height of the original image
-            width = self.cap.get(cv2.CAP_PROP_FRAME_WIDTH)
-            height = self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
-
-            print(f"{width}x{height}")
-            
-            # Calculate the scale factor to keep the aspect ratio and limit the height to 300
-            scale = min(1, 300 / height)
-            
-            # Resize the original image
-            self.resize_width = int(width * scale)
-            self.resize_height = int(height * scale)
-        
-        aruco_dict = cv2.aruco.getPredefinedDictionary(ARUCO_DICT[self.aruco_dropdown.get()])
-
-
-        # Get the latest frame and convert into Image
-        frame = self.cap.read()[1]
-        # Detect markers in the frame
-        corners, ids, _ = cv2.aruco.detectMarkers(frame, aruco_dict)
-
-        # Draw A square around the markers
-        # aruco.drawDetectedMarkers(frame, corners)  
-        for i in range(len(ids)):
-            # get marker corners
-            pts = np.int32(corners[i][0])
-            # draw lines between corners
-            cv2.line(frame, tuple(pts[0]), tuple(pts[1]), (0, 255, 0), thickness=3)
-            cv2.line(frame, tuple(pts[1]), tuple(pts[2]), (0, 255, 0), thickness=3)
-            cv2.line(frame, tuple(pts[2]), tuple(pts[3]), (0, 255, 0), thickness=3)
-            cv2.line(frame, tuple(pts[3]), tuple(pts[0]), (0, 255, 0), thickness=3)
-
-        cv2image= cv2.cvtColor(frame,cv2.COLOR_BGR2RGB)
-        cv2image_resized = cv2.resize(cv2image, (self.resize_width, self.resize_height))
-        
-        img = Image.fromarray(cv2image_resized)
-        # Convert image to PhotoImage
-        imgtk = ImageTk.PhotoImage(image=img)
-        self.video_label.imgtk = imgtk
-        self.video_label.configure(image=imgtk)
-        
-        # Repeat after an interval to capture continuously
-        self.video_label.after(10, self.show_camera)
-   
+  
 
 def get_available_cameras():
     available_cameras = []
