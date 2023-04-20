@@ -84,28 +84,11 @@ class OCR_GUI:
         self.camera_names = ["jans_webcam", "diegos_phone"]
         self.camera_name_dropdown = ttk.Combobox(self.parameters_frame, value=self.camera_names)
         self.camera_name_dropdown.current(0)
-
-        def update_cam():
-            # Path to pickle file
-            calib_file_path = "cam_calibration/cameras/" + self.camera_name_dropdown.get() + "/calibration_params.pickle"
-
-            # Load the calibration parameters from the pickle file
-            with open(calib_file_path, 'rb') as f:
-                calibration_params = pickle.load(f)
-
-            # Extract the parameters from the dictionary
-            self.mtx = calibration_params["mtx"]
-            self.dist = calibration_params["dist"]
-            self.calib_w = int(calibration_params["calib_w"])
-            self.calib_h = int(calibration_params["calib_h"])
-
-            if any(x is None for x in (self.mtx, self.dist)):
-                messagebox.showerror("Error", "Failed to retrieve calibration parameters.")
         
-        update_cam()
+        self.update_cam()
         self.selected_camera = self.camera_name_dropdown.get()
         self.camera_name_dropdown.grid(row=1, column=1, padx=5, pady=5)
-        self.camera_name_dropdown.bind("<<ComboboxSelected>>", update_cam)
+        self.camera_name_dropdown.bind("<<ComboboxSelected>>", lambda event: self.update_cam())
 
         # Aruco marker choice dropdown menu
         self.aruco_dict_label = tk.Label(self.parameters_frame, text="Aruco dictionary:")
@@ -171,6 +154,24 @@ class OCR_GUI:
         self.start_button.pack(side=tk.BOTTOM, anchor='s', padx=15, pady=15)
         self.results = []
 
+    def update_cam(self):
+        print(f"Updating camera: {self.camera_name_dropdown.get()}")
+        # Path to pickle file
+        calib_file_path = "cam_calibration/cameras/" + self.camera_name_dropdown.get() + "/calibration_params.pickle"
+
+        # Load the calibration parameters from the pickle file
+        with open(calib_file_path, 'rb') as f:
+            calibration_params = pickle.load(f)
+
+        # Extract the parameters from the dictionary
+        self.mtx = calibration_params["mtx"]
+        self.dist = calibration_params["dist"]
+        self.calib_w = int(calibration_params["calib_w"])
+        self.calib_h = int(calibration_params["calib_h"])
+        print(f"{self.calib_w}x{self.calib_h}")
+
+        if any(x is None for x in (self.mtx, self.dist)):
+            messagebox.showerror("Error", "Failed to retrieve calibration parameters.")
 
     def toggle_ocr(self):
         if self.ocr_on:
@@ -325,7 +326,7 @@ class OCR_GUI:
         # Get video feed resolution
         width  = self.cap.get(cv2.CAP_PROP_FRAME_WIDTH)
         height = self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
-        # print(f"Resolution = {width}x{height}")
+        print(f"Resolution = {int(width)}x{int(height)}")
         
         # Detect markers in the frame
         aruco_dict = cv2.aruco.getPredefinedDictionary(ARUCO_DICT[self.aruco_dropdown.get()])
