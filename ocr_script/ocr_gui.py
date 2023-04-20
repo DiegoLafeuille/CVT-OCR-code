@@ -69,6 +69,17 @@ class OCR_GUI:
         self.parameters_frame = tk.Frame(self.right_frame)
         self.parameters_frame.pack(fill=tk.X, padx=5, pady=5)
 
+        # Camera choice dropdown menu
+        self.cam_label = tk.Label(self.parameters_frame, text="Camera:")
+        self.cam_label.grid(row=1, column=0, padx=5, pady=5)
+        self.camera_names = ["jans_webcam", "diegos_phone", "diegos_iriun"]
+        self.camera_name_dropdown = ttk.Combobox(self.parameters_frame, value=self.camera_names)
+        self.camera_name_dropdown.current(0)
+        self.update_cam()
+        self.selected_camera = self.camera_name_dropdown.get()
+        self.camera_name_dropdown.grid(row=1, column=1, padx=5, pady=5)
+        self.camera_name_dropdown.bind("<<ComboboxSelected>>", lambda event: self.update_cam())
+
         # Camera channel choice dropdown menu
         self.ch_label = tk.Label(self.parameters_frame, text="Camera channel:")
         self.ch_label.grid(row=0, column=0, padx=5, pady=5)
@@ -77,18 +88,9 @@ class OCR_GUI:
         self.camera_ch_dropdown.current(0)
         self.selected_camera_ch = int(self.camera_ch_dropdown.get())
         self.camera_ch_dropdown.grid(row=0, column=1, padx=5, pady=5)
-
-        # Camera choice dropdown menu
-        self.cam_label = tk.Label(self.parameters_frame, text="Camera:")
-        self.cam_label.grid(row=1, column=0, padx=5, pady=5)
-        self.camera_names = ["jans_webcam", "diegos_phone"]
-        self.camera_name_dropdown = ttk.Combobox(self.parameters_frame, value=self.camera_names)
-        self.camera_name_dropdown.current(0)
-        
-        self.update_cam()
-        self.selected_camera = self.camera_name_dropdown.get()
-        self.camera_name_dropdown.grid(row=1, column=1, padx=5, pady=5)
-        self.camera_name_dropdown.bind("<<ComboboxSelected>>", lambda event: self.update_cam())
+        self.camera_ch_dropdown.bind("<<ComboboxSelected>>", lambda event: self.update_cam_ch())
+        self.cap = None
+        self.update_cam_ch()
 
         # Aruco marker choice dropdown menu
         self.aruco_dict_label = tk.Label(self.parameters_frame, text="Aruco dictionary:")
@@ -153,6 +155,18 @@ class OCR_GUI:
         self.start_button = tk.Button(self.right_frame, text="Start OCR", command=self.toggle_ocr)
         self.start_button.pack(side=tk.BOTTOM, anchor='s', padx=15, pady=15)
         self.results = []
+
+
+
+
+    def update_cam_ch(self):
+        print(f"Changing camera to channel {}: {self.calib_w}x{self.calib_h}")
+        if self.cap is not None:
+            self.cap.release()
+        self.cap = cv2.VideoCapture(int(self.camera_ch_dropdown.get()))
+        self.cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
+        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.calib_w)
+        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.calib_h)
 
     def update_cam(self):
         print(f"Updating camera: {self.camera_name_dropdown.get()}")
@@ -308,16 +322,7 @@ class OCR_GUI:
         self.video_label.after(10, self.show_camera)
  
     def show_rectified_camera(self):
-        
-        # Check if camera channel changed
-        if self.selected_camera_ch != int(self.camera_ch_dropdown.get()):
-            self.selected_camera_ch = int(self.camera_ch_dropdown.get())
-            self.cap.release()
-            self.cap = cv2.VideoCapture(int(self.camera_ch_dropdown.get()))
-            self.cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
-            self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.calib_w)
-            self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.calib_h)
-        
+                
         # Read a new frame from the camera
         ret, frame = self.cap.read()  
         if not ret:  
