@@ -81,7 +81,7 @@ class OCR_GUI:
         # Camera choice dropdown menu
         self.cam_label = tk.Label(self.parameters_frame, text="Camera:")
         self.cam_label.grid(row=1, column=0, padx=5, pady=5)
-        self.camera_names = ["jans_webcam", "diegos_phone"]
+        self.camera_names = ["jans_webcam", "diegos_phone", "diegos_iriun"]
         self.camera_name_dropdown = ttk.Combobox(self.parameters_frame, value=self.camera_names)
         self.camera_name_dropdown.current(0)
         
@@ -326,7 +326,7 @@ class OCR_GUI:
         # Get video feed resolution
         width  = self.cap.get(cv2.CAP_PROP_FRAME_WIDTH)
         height = self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
-        print(f"Resolution = {int(width)}x{int(height)}")
+        # print(f"Resolution = {int(width)}x{int(height)}")
         
         # Detect markers in the frame
         aruco_dict = cv2.aruco.getPredefinedDictionary(ARUCO_DICT[self.aruco_dropdown.get()])
@@ -353,6 +353,7 @@ class OCR_GUI:
                     roi_corners["B"] = [int(corners[index][0][1][0]), int(corners[index][0][1][1])] # Top right corner of ID 4
 
                 # Estimate pose of each marker and return the values rvec and tvec
+                print(self.aruco_size)
                 rvec, tvec, _ = aruco.estimatePoseSingleMarkers(corners[index], self.aruco_size, self.mtx, self.dist)
                 tvecs.append(tvec)
                 rvecs.append(rvec)
@@ -394,7 +395,7 @@ class OCR_GUI:
                     
                     # Draw distance from camera to marker center
                     cv2.putText(frame, 
-                            f"{round(np.linalg.norm(tvec[0][0]), 2)} m", 
+                            f"{round(np.linalg.norm(tvecs[i][0][0]), 2)} m", 
                             corner[0][1].astype(int), 
                             cv2.FONT_HERSHEY_PLAIN, 3, (0, 0, 255), 2, 
                             cv2.LINE_AA,
