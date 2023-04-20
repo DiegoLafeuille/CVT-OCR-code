@@ -7,7 +7,7 @@ import sys
 ap = argparse.ArgumentParser()
 # ap.add_argument("-o", "--output", required=True,
 # 	help="path to output image containing ArUCo tag")
-ap.add_argument("-i", "--id", type=int, required=True,
+ap.add_argument("-i", "--id", nargs="+", type=int, required=True,
 	help="ID of ArUCo tag to generate")
 ap.add_argument("-t", "--type", type=str,
 	default="DICT_ARUCO_ORIGINAL",
@@ -53,17 +53,18 @@ arucoDict = cv2.aruco.getPredefinedDictionary(ARUCO_DICT[args["type"]])
 
 # allocate memory for the output ArUCo tag and then draw the ArUCo
 # tag on the output image
-print("[INFO] generating ArUCo tag type '{}' with ID '{}'".format(
-	args["type"], args["id"]))
-tag = np.zeros((300, 300, 1), dtype="uint8")
-cv2.aruco.generateImageMarker(arucoDict, args["id"], 300, tag, 1)
-# write the generated ArUCo tag to disk and then display it to our
-# screen
+for id in args["id"]:
+	print("[INFO] generating ArUCo tag type '{}' with ID '{}'".format(
+		args["type"], id))
+	tag = np.zeros((300, 300, 1), dtype="uint8")
+	cv2.aruco.generateImageMarker(arucoDict, id, 300, tag, 1)
+	# write the generated ArUCo tag to disk and then display it to our
+	# screen
 
-output = "tags/" + args["type"] + "_id" + str(args["id"]) + ".png"
+	output = "aruco_code/tags/" + args["type"] + "_id" + str(id) + ".png"
 
-if not cv2.imwrite(output, tag):
-     raise Exception("Could not write image")
+	if not cv2.imwrite(output, tag):
+		raise Exception("Could not write image")
 
 cv2.imshow("ArUCo Tag", tag)
 cv2.waitKey(0)

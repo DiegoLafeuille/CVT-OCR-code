@@ -59,3 +59,4 @@ def process_webcam_feed(roi_list, selected_cam, canvas_width, canvas_height):
 
     # Release the video capture device and close the csv file
     cap.release()
+

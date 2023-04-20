@@ -8,7 +8,7 @@ train_val_images
 results.csv
 
 # calibration images
-calib_img
+*.jpg
 
 # Aruco marker images
 tags
