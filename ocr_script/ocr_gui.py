@@ -160,7 +160,7 @@ class OCR_GUI:
 
 
     def update_cam_ch(self):
-        print(f"Changing camera to channel {}: {self.calib_w}x{self.calib_h}")
+        print(f"Changing camera to channel: {self.calib_w}x{self.calib_h}")
         if self.cap is not None:
             self.cap.release()
         self.cap = cv2.VideoCapture(int(self.camera_ch_dropdown.get()))
@@ -358,7 +358,6 @@ class OCR_GUI:
                     roi_corners["B"] = [int(corners[index][0][1][0]), int(corners[index][0][1][1])] # Top right corner of ID 4
 
                 # Estimate pose of each marker and return the values rvec and tvec
-                print(self.aruco_size)
                 rvec, tvec, _ = aruco.estimatePoseSingleMarkers(corners[index], self.aruco_size, self.mtx, self.dist)
                 tvecs.append(tvec)
                 rvecs.append(rvec)
