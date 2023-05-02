@@ -115,6 +115,22 @@ class OCR_GUI:
 
         self.aruco_size_entry.bind("<Return>", lambda event: on_size_entry())
 
+        # OCR frequence input
+        self.frequence_label = ttk.Label(self.parameters_frame, text="OCR frequence [seconds between pictures]:")
+        self.frequence_label.grid(row=4, column=0, padx=5, pady=5)
+        self.frequence_entry = ttk.Entry(self.parameters_frame)
+        self.frequence_entry.insert(-1, "1")
+        self.frequence_entry.grid(row=4, column=1, padx=5, pady=5)
+        self.frequence = 1
+
+        def on_frequence_entry():
+            try:
+                self.frequence = float(self.frequence_entry.get())
+            except ValueError:
+                messagebox.showerror("Error", "Number of seconds between pictures must be integer.")
+
+        self.frequence_entry.bind("<Return>", lambda event: on_frequence_entry())
+
         # Video feed
         self.cap = cv2.VideoCapture(self.selected_camera_ch)
         self.cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
@@ -408,7 +424,7 @@ class OCR_GUI:
         # Read a new frame from the camera
         ret, frame = self.cap.read()
         if not ret:  
-            self.canvas.after(330, self.show_rectified_camera)
+            self.canvas.after(int(self.frequence*1000), self.show_rectified_camera)
             return
         
         # Get video feed resolution
@@ -566,7 +582,7 @@ class OCR_GUI:
             self.ocr_count +=1
 
         # Repeat after an interval to capture continuously
-        self.canvas.after(330, self.show_rectified_camera)
+        self.canvas.after(int(self.frequence*1000), self.show_rectified_camera)
 
     def get_obj_dims(self, tvecs, ids):
      
