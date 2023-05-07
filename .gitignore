@@ -9,6 +9,7 @@ results.csv
 
 # calibration images
 *.jpg
+*.jpeg
 *.png
 
 # Aruco marker images
