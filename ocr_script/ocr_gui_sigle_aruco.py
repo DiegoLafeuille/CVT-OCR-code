@@ -66,7 +66,7 @@ class OCR_GUI:
         self.canvas_image = self.canvas.create_image(0, 0, anchor=tk.NW)
 
         # "Find surface" button for single aruco method
-        self.indicate_surface_button = ttk.Button(self.left_frame, text="Indicate display surface", command=self.indicate_surface_gui)
+        self.indicate_surface_button = ttk.Button(self.left_frame, text="Indicate display surface", command=self.indicate_surface_window)
         self.indicate_surface_button.pack(side=tk.BOTTOM, anchor='s', padx=15, pady=15)
         
         # Create new frame to hold the dropdown grid
@@ -99,7 +99,7 @@ class OCR_GUI:
         self.aruco_dict_label = ttk.Label(self.parameters_frame, text="Aruco dictionary:")
         self.aruco_dict_label.grid(row=2, column=0, padx=5, pady=5)
         self.aruco_dropdown = ttk.Combobox(self.parameters_frame, value=list(ARUCO_DICT.keys()))
-        self.aruco_dropdown.current(0)
+        self.aruco_dropdown.current(12)
         self.selected_aruco = self.aruco_dropdown.get()
         self.aruco_dropdown.grid(row=2, column=1, padx=5, pady=5)
 
@@ -107,9 +107,9 @@ class OCR_GUI:
         self.aruco_size_label = ttk.Label(self.parameters_frame, text="Aruco marker size [meters]:")
         self.aruco_size_label.grid(row=3, column=0, padx=5, pady=5)
         self.aruco_size_entry = ttk.Entry(self.parameters_frame)
-        self.aruco_size_entry.insert(-1, "0.04")
+        self.aruco_size_entry.insert(-1, "0.08")
         self.aruco_size_entry.grid(row=3, column=1, padx=5, pady=5)
-        self.aruco_size = 0.04
+        self.aruco_size = 0.08
 
         def on_size_entry():
             try:
@@ -634,11 +634,12 @@ class OCR_GUI:
 
     # Methods for one marker method
 
-    def indicate_surface_gui(self):
+    def indicate_surface_window(self):
 
         self.window_feed = tk.Toplevel(self.master)
         self.window_feed.title("Indicate Target Surface")
 
+        self.found_surface = None
         self.surface_coords = []
         self.saved_coords_label = ttk.Label(self.window_feed, text=f"Number of saved surfaces: {len(self.surface_coords)} / 2")
         self.saved_coords_label.pack()
@@ -656,27 +657,27 @@ class OCR_GUI:
 
         # Create "Confirm surface" button
         confirm_button = tk.Button(self.window_feed, text="Confirm surface", command=self.save_coords)
-        confirm_button.pack(side="left", fill=tk.BOTH, expand=tk.NO, pady=10)
+        confirm_button.pack(side="left", fill= "both",  expand=tk.YES, pady=10)
 
-        # # Create "Display calculated surface" button
-        # show_surface_button = tk.Button(self.window_feed, text="Display calculated surface", command=self.display_surface)
-        # show_surface_button.pack(fill=tk.BOTH, expand=tk.NO, pady=10)
+        # Create "Display calculated surface" button
+        show_surface_button = tk.Button(self.window_feed, text="Display calculated surface", command=self.display_surface)
+        show_surface_button.pack(side="left", fill= "both", expand=tk.YES, pady=10)
 
         # Create "Cancel" button
         cancel_button = tk.Button(self.window_feed, text="Cancel", command=self.window_feed.destroy)
-        cancel_button.pack(side="right", fill=tk.BOTH, expand=tk.NO, pady=10)
+        cancel_button.pack(side="right", fill= "both",  expand=tk.YES, pady=10)
 
         self.move_shape = None
         self.indic_surf_canvas.bind("<Button-1>", self.draw_on_press)
         self.indic_surf_canvas.bind("<Motion>", self.draw_on_move)
         self.coords = []
         self.point_coords = []
-        self.surface_lines_list = []
+        self.surface_line_eqs = []
 
         self.update_indic_surf_canvas(resized_width, resized_height)
     
     def update_indic_surf_canvas(self, resized_width, resized_height):
-
+                
         ret, frame = self.cap.read()
 
         if not ret:
@@ -743,39 +744,191 @@ class OCR_GUI:
         self.surface_coords.append(self.coords)
         self.saved_coords_label.config(text=f"Number of saved surfaces: {len(self.surface_coords)} / 2")
         
-        self.surface_lines = [self.get_line_equation(point) for point in self.coords]
-        self.surface_lines_list.append(self.surface_lines)
+        self.line_eq = [self.get_line_equation(point) for point in self.coords]
 
-        # print(np.shape(self.surface_lines_list))
+        self.surface_line_eqs.append(self.line_eq)
+        # print(np.shape(self.surface_line_eqs))
 
         self.indic_surf_canvas.delete(self.finished_shape)
         self.coords = []
      
     def get_line_equation(self, point):
 
-        s = symbols('s')
+        self.s = symbols('s')
         x = np.array([[point[0]], [point[1]], [1]])
-        # print(x)
 
         rot_mat = cv2.Rodrigues(self.rvec)[0]
         inv_rodr = np.linalg.inv(rot_mat)
-        # print(inv_rodr)
+        
         inv_mtx = np.linalg.inv(self.mtx)
-        # print(inv_mtx)
 
-        eq_line = inv_rodr @ inv_mtx @ (s * x - self.tvec)
-        # print (eq_line)
+        step1 = inv_mtx @ (self.s * x)
+        step2 = step1 - self.tvec.reshape((3,1))
+        step3 = inv_rodr @ step2
+        line_equation = step3
 
-        return eq_line
+        # line_equation = inv_rodr @ ((inv_mtx @ (self.s * x)) - self.tvec.reshape((3,1)))
+        # print (f"line equation shape:\n{line_equation.shape}")
+        # print (f"line equation:\n{line_equation}")
+        return line_equation
 
     def display_surface(self):
-        pass
 
-    def find_point_coords(self, line_eqs):
-        pass
+        if len(self.surface_line_eqs) < 2:
+            messagebox.showerror("Error", "Indicate surface at least twice.", parent= self.window_feed)
+            return
+        
+        surface_world_coords = []
+        
+        for point in range(4):
+            # Get all line equations for one point
+            point_lines_w_coords = [surface_line[point] for surface_line in self.surface_line_eqs]
+            # Find world coordinates for that point
+            point_world_coords = self.find_point_world_coords(point_lines_w_coords)
+            surface_world_coords.append(point_world_coords)
+
+        # print("surface_world_coords")
+        # print(surface_world_coords)
+        # print("tvec and rvec")
+        # print(self.tvec, self.rvec)
+
+        surface_img_coords = [self.find_img_coords(point_coords) for point_coords in surface_world_coords]
+
+        print("surface_img_coords")
+        print(surface_img_coords)
+
+        self.found_surface = self.indic_surf_canvas.create_polygon(surface_img_coords, outline='green', width=3)
 
 
 
+        
+    def find_point_world_coords(self, line_eqs):
+        """
+        Given a list of lines, find the point that is closest to all the lines.
+        The least square method is used here.
+        """
+        
+        # Compute the intersection points of all pairs of lines
+        intersections = []
+        
+        
+        for i in range(len(line_eqs)):
+
+            # print([f"{x}= {eq[0]}" for x, eq in zip(["X","Y","Z"], line_eqs[i])])   
+
+            for j in range(i+1, len(line_eqs)):
+
+                # Replace s in each line's system of equation X(s), Y(s), Z(s), to get two points
+                p1 = np.array([eq[0].subs(self.s, 0) for eq in line_eqs[i]]).reshape((3))
+                p2 = np.array([eq[0].subs(self.s, 1) for eq in line_eqs[i]]).reshape((3))
+                # print(p1)
+                # print(p2)
+                
+                q1 = np.array([eq[0].subs(self.s, 0) for eq in line_eqs[j]]).reshape((3))
+                q2 = np.array([eq[0].subs(self.s, 1) for eq in line_eqs[j]]).reshape((3))
+                # print(q1)
+                # print(q2)
+                
+                intersection = self.line_intersection(p1, p2, q1, q2)
+                intersections.append(intersection)
+
+        x = least_squares_average(intersections)
+
+        # Convert the intersection points to a matrix
+        # A = np.array(intersections)
+
+        # Formulate the linear system of equations
+        # x = np.linalg.lstsq(A, np.ones((len(intersections), 1)), rcond=None)[0]
+
+        # Return the solution as a point
+        return x
+    
+    def line_intersection(self, p1, p2, q1, q2):
+        """
+        Given two lines, each represented by a pair of 3D points, compute their
+        intersection point.
+        """
+
+        # Calculate direction vectors for each line
+        p_dir = p2 - p1
+        q_dir = q2 - q1
+
+        # Calculate the translation between the two points of origin
+        orig_translation = p1 - q1
+
+        a = np.dot(p_dir, p_dir.T)
+        b = np.dot(p_dir, q_dir.T)
+        c = np.dot(q_dir, q_dir.T)
+        d = np.dot(p_dir, orig_translation.T)
+        e = np.dot(q_dir, orig_translation.T)
+        denom = a*c - b*b
+
+        if denom != 0:
+            s = (b*e - c*d) / denom
+            t = (a*e - b*d) / denom
+            result = 0.5 * (p1 + s*p_dir + q1 + t*q_dir)
+            result = [float(x) for x in result]
+            return result
+        
+        # If lines are parallel
+        else:
+            return np.nan * np.ones(3)
+
+    def find_img_coords(self, world_coords):
+        
+        point_3d = np.array(world_coords).reshape((1, 1, 3))
+
+        # Use projectPoints to project the 3D point onto the 2D image plane
+        point_2d, _ = cv2.projectPoints(point_3d, self.rvec, self.tvec, self.mtx, self.dist)
+
+        # Extract the pixel coordinates of the projected point
+        pixel_coords = tuple(map(int, point_2d[0, 0]))
+
+        return pixel_coords
+
+def least_squares_average(points, n_outliers=0.2, max_iterations=100, tolerance=1e-6):
+    """Computes the least squares estimate of the average point for a list of 3D points.
+
+    Args:
+        points: A list of 3D points.
+        n_outliers: The percentage of distances to discard as outliers.
+        max_iterations: The maximum number of iterations to perform.
+        tolerance: The tolerance for convergence.
+
+    Returns:
+        The least squares estimate of the average point.
+    """
+    # Convert points to a numpy array for easier computation.
+    points = np.array(points)
+
+    # Choose an initial estimate for the average point.
+    average = np.mean(points, axis=0)
+
+    for iteration in range(max_iterations):
+        # Compute the distance between each point and the current estimate.
+        distances = np.linalg.norm(points - average, axis=1)
+
+        # Sort the distances in ascending order.
+        sorted_distances = np.sort(distances)
+
+        # Discard the top n percent of the distances as outliers.
+        n = int(n_outliers * len(points))
+        inliers = sorted_distances[n:]
+
+        # Compute the least squares estimate of the average point using the remaining distances.
+        if len(inliers) == 0:
+            # All points were outliers, so we can't compute a least squares estimate.
+            break
+
+        new_average = np.mean(points[distances <= inliers[-1]], axis=0)
+
+        # Check for convergence.
+        if np.allclose(average, new_average, atol=tolerance):
+            break
+
+        average = new_average
+
+    return average
 
 def get_available_cameras():
     available_cameras = []

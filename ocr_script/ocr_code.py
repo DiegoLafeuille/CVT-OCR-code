@@ -23,7 +23,7 @@ def process_webcam_feed(frame, reader, roi_list, cols):
         roi_img = frame[y1:y2, x1:x2]
         
         if roi['only_nums']:
-            text = reader.readtext(roi_img, allowlist = "0123456789.,'")
+            text = reader.readtext(roi_img, allowlist = "0123456789.,:'")
         else:
             text = reader.readtext(roi_img)
         texts.append(text[0][1] if text else "No text recognized")
