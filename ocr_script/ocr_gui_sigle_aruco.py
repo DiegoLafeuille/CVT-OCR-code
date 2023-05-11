@@ -77,22 +77,24 @@ class OCR_GUI:
         self.cap = None
         self.cam_label = ttk.Label(self.parameters_frame, text="Camera:")
         self.cam_label.grid(row=1, column=0, padx=5, pady=5)
-        self.camera_names = ["jans_webcam", "diegos_phone", "diegos_iriun", "pc08_webcam"]
+        self.camera_names = ["jans_webcam_charuco", "jans_webcam", "diegos_phone", "diegos_iriun", "pc08_webcam"]
         self.camera_name_dropdown = ttk.Combobox(self.parameters_frame, value=self.camera_names)
         self.camera_name_dropdown.current(0)
         self.selected_camera = self.camera_name_dropdown.get()
         self.camera_name_dropdown.grid(row=1, column=1, padx=5, pady=5)
         self.camera_name_dropdown.bind("<<ComboboxSelected>>", lambda event: self.update_cam())
 
-        # Camera channel choice dropdown menu
-        self.ch_label = ttk.Label(self.parameters_frame, text="Camera channel:")
-        self.ch_label.grid(row=0, column=0, padx=5, pady=5)
-        self.camera_channels = get_available_cameras()
-        self.camera_ch_dropdown = ttk.Combobox(self.parameters_frame, value=self.camera_channels)
-        self.camera_ch_dropdown.current(0)
-        self.selected_camera_ch = int(self.camera_ch_dropdown.get())
-        self.camera_ch_dropdown.grid(row=0, column=1, padx=5, pady=5)
-        self.camera_ch_dropdown.bind("<<ComboboxSelected>>", lambda event: self.update_cam_ch())
+        # Camera input choice dropdown menu
+        self.cam_input = ttk.Label(self.parameters_frame, text="Camera input:")
+        self.cam_input.grid(row=0, column=0, padx=5, pady=5)
+        self.camera_inputs = get_available_cameras()
+        self.camera_input_dropdown = ttk.Combobox(self.parameters_frame, value=self.camera_inputs)
+        self.camera_input_dropdown.current(0)
+        self.selected_camera_input = int(self.camera_input_dropdown.get())
+        self.camera_input_dropdown.grid(row=0, column=1, padx=5, pady=5)
+        self.camera_input_dropdown.bind("<<ComboboxSelected>>", lambda event: self.update_cam_input())
+        refresh_button = ttk.Button(self.parameters_frame, text="Refresh", command=self.get_cam_inputs)
+        refresh_button.grid(row=0, column=2, padx=5, pady=5)
         self.update_cam()
 
         # Aruco marker choice dropdown menu
@@ -143,7 +145,7 @@ class OCR_GUI:
         self.one_marker_checkbox.grid(row=5, column=1, padx=5, pady=5)
 
         # Video feed
-        self.cap = cv2.VideoCapture(self.selected_camera_ch)
+        self.cap = cv2.VideoCapture(self.selected_camera_input)
         self.cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
         self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.calib_w)
         self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.calib_h)
@@ -189,14 +191,14 @@ class OCR_GUI:
         self.results = []
 
 
-    def update_cam_ch(self):
+    def update_cam_input(self):
         
-        print(f"Changing camera to channel {int(self.camera_ch_dropdown.get())}")
+        print(f"Changing camera to input {int(self.camera_input_dropdown.get())}")
 
         try :
             if self.cap is not None:
                 self.cap.release()
-            self.cap = cv2.VideoCapture(int(self.camera_ch_dropdown.get()))
+            self.cap = cv2.VideoCapture(int(self.camera_input_dropdown.get()))
             self.cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
             self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.calib_w)
             self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.calib_h)
@@ -205,11 +207,11 @@ class OCR_GUI:
                 raise Exception("FrameNotRead")
             width = self.cap.get(cv2.CAP_PROP_FRAME_WIDTH)
             height = self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
-            self.selected_camera_ch = int(self.camera_ch_dropdown.get())
+            self.selected_camera_input = int(self.camera_input_dropdown.get())
 
             if self.calib_w != int(width) or self.calib_h != int(height):
                 messagebox.showwarning("Warning", "Target and actual resolutions differ.\n"
-                                     + "Make sure camera input channel and camera name correspond.\n"
+                                     + "Make sure camera input and camera name correspond.\n"
                                      + f"Target resolution = {self.calib_w}x{self.calib_h}\n"
                                      + f"Actual resolution = {int(width)}x{int(height)}")
 
@@ -220,8 +222,8 @@ class OCR_GUI:
             else:
                 messagebox.showerror("Error", "An error occurred while trying to retrieve video feed from this camera.")
                 raise e
-            self.camera_ch_dropdown.current(self.selected_camera_ch)
-            self.update_cam_ch()
+            self.camera_input_dropdown.current(self.selected_camera_input)
+            self.update_cam_input()
 
     def update_cam(self):
         print(f"Updating camera: {self.camera_name_dropdown.get()}")
@@ -241,7 +243,11 @@ class OCR_GUI:
         if any(x is None for x in (self.mtx, self.dist)):
             messagebox.showerror("Error", "Failed to retrieve calibration parameters.")
         
-        self.update_cam_ch()
+        self.update_cam_input()
+
+    def get_cam_inputs(self):
+        self.camera_inputs = get_available_cameras()
+        self.camera_input_dropdown['values'] = self.camera_inputs
 
     def toggle_ocr(self):
 
@@ -649,7 +655,7 @@ class OCR_GUI:
         max_height = 720
         width = self.cap.get(cv2.CAP_PROP_FRAME_WIDTH)
         height = self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
-        resized_width, resized_height = resize(max_width, max_height, width, height)
+        resized_width, resized_height = resize_with_aspect(max_width, max_height, width, height)
         self.indic_surf_canvas = tk.Canvas(self.window_feed, width=resized_width,
                                 height=resized_height, bd=2, bg="grey")
         self.indic_surf_canvas_image = self.indic_surf_canvas.create_image(0, 0, anchor=tk.NW)
@@ -660,8 +666,9 @@ class OCR_GUI:
         confirm_button.pack(side="left", fill= "both",  expand=tk.YES, pady=10)
 
         # Create "Display calculated surface" button
-        show_surface_button = tk.Button(self.window_feed, text="Display calculated surface", command=self.display_surface)
+        show_surface_button = tk.Button(self.window_feed, text="Display calculated surface", command=self.toggle_display_surface)
         show_surface_button.pack(side="left", fill= "both", expand=tk.YES, pady=10)
+        self.display_surface_on = False
 
         # Create "Cancel" button
         cancel_button = tk.Button(self.window_feed, text="Cancel", command=self.window_feed.destroy)
@@ -677,7 +684,9 @@ class OCR_GUI:
         self.update_indic_surf_canvas(resized_width, resized_height)
     
     def update_indic_surf_canvas(self, resized_width, resized_height):
-                
+        
+        self.window_feed.update()
+
         ret, frame = self.cap.read()
 
         if not ret:
@@ -704,6 +713,9 @@ class OCR_GUI:
         resized_img = cv2.resize(frame, (resized_width, resized_height))
 
         img = Image.fromarray(resized_img)
+
+        if self.display_surface_on:
+            self.display_surface()
 
         # Convert the PIL Image to ImageTk format
         self.indic_surf_canvas_imgtk = ImageTk.PhotoImage(image=img)
@@ -772,42 +784,40 @@ class OCR_GUI:
         # print (f"line equation:\n{line_equation}")
         return line_equation
 
-    def display_surface(self):
+    def toggle_display_surface(self):
 
         if len(self.surface_line_eqs) < 2:
             messagebox.showerror("Error", "Indicate surface at least twice.", parent= self.window_feed)
             return
         
-        surface_world_coords = []
+        if self.display_surface_on:
+            self.indic_surf_canvas.delete(self.found_surface)
+            self.found_surface = None
+        else:
+            self.surface_world_coords = []
+            for point in range(4):
+                # Get all line equations for one point
+                point_lines_w_coords = [surface_line[point] for surface_line in self.surface_line_eqs]
+                # Find world coordinates for that point
+                point_world_coords = self.find_point_world_coords(point_lines_w_coords)
+                self.surface_world_coords.append(point_world_coords)
         
-        for point in range(4):
-            # Get all line equations for one point
-            point_lines_w_coords = [surface_line[point] for surface_line in self.surface_line_eqs]
-            # Find world coordinates for that point
-            point_world_coords = self.find_point_world_coords(point_lines_w_coords)
-            surface_world_coords.append(point_world_coords)
+        self.display_surface_on = not self.display_surface_on
 
-        # print("surface_world_coords")
-        # print(surface_world_coords)
-        # print("tvec and rvec")
-        # print(self.tvec, self.rvec)
+    def display_surface(self):
+        
+        if self.found_surface is not None:
+            self.indic_surf_canvas.delete(self.found_surface)
 
-        surface_img_coords = [self.find_img_coords(point_coords) for point_coords in surface_world_coords]
-
-        print("surface_img_coords")
-        print(surface_img_coords)
-
+        surface_img_coords = [self.find_img_coords(point_coords) for point_coords in self.surface_world_coords]
         self.found_surface = self.indic_surf_canvas.create_polygon(surface_img_coords, outline='green', width=3)
-
-
-
         
     def find_point_world_coords(self, line_eqs):
         """
         Given a list of lines, find the point that is closest to all the lines.
         The least square method is used here.
         """
-        
+
         # Compute the intersection points of all pairs of lines
         intersections = []
         
@@ -821,29 +831,20 @@ class OCR_GUI:
                 # Replace s in each line's system of equation X(s), Y(s), Z(s), to get two points
                 p1 = np.array([eq[0].subs(self.s, 0) for eq in line_eqs[i]]).reshape((3))
                 p2 = np.array([eq[0].subs(self.s, 1) for eq in line_eqs[i]]).reshape((3))
-                # print(p1)
-                # print(p2)
                 
                 q1 = np.array([eq[0].subs(self.s, 0) for eq in line_eqs[j]]).reshape((3))
                 q2 = np.array([eq[0].subs(self.s, 1) for eq in line_eqs[j]]).reshape((3))
-                # print(q1)
-                # print(q2)
                 
-                intersection = self.line_intersection(p1, p2, q1, q2)
+                intersection = self.lines_intersection(p1, p2, q1, q2)
                 intersections.append(intersection)
 
-        x = least_squares_average(intersections)
-
-        # Convert the intersection points to a matrix
-        # A = np.array(intersections)
-
-        # Formulate the linear system of equations
-        # x = np.linalg.lstsq(A, np.ones((len(intersections), 1)), rcond=None)[0]
+        # x = least_squares_average(intersections)
+        x = np.mean(intersections, axis=0)
 
         # Return the solution as a point
         return x
     
-    def line_intersection(self, p1, p2, q1, q2):
+    def lines_intersection(self, p1, p2, q1, q2):
         """
         Given two lines, each represented by a pair of 3D points, compute their
         intersection point.
@@ -885,6 +886,9 @@ class OCR_GUI:
         pixel_coords = tuple(map(int, point_2d[0, 0]))
 
         return pixel_coords
+
+
+
 
 def least_squares_average(points, n_outliers=0.2, max_iterations=100, tolerance=1e-6):
     """Computes the least squares estimate of the average point for a list of 3D points.
@@ -942,7 +946,7 @@ def get_available_cameras():
         cap = cv2.VideoCapture(index, cv2.CAP_DSHOW)
     return available_cameras
 
-def resize(max_width, max_height, width, height):
+def resize_with_aspect(max_width, max_height, width, height):
 
     # Calculate the aspect ratio of the original image
     aspect_ratio = width / float(height)
