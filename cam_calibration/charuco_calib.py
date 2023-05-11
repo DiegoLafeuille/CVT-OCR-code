@@ -10,10 +10,10 @@ import pickle
 ap = argparse.ArgumentParser()
 ap.add_argument("-c", "--camera", type=str, required=True,
 	help="Name of camera geting calibrated")
-ap.add_argument("-sl", "--square-length", type=float, default= 2,
-	help="Length of one square in mm")
-ap.add_argument("-ml", "--marker-length", type=float, default= 1.6,
-	help="Length of one marker in mm")
+ap.add_argument("-sl", "--square-length", type=float, default= 0.02,
+	help="Length of one square in m")
+ap.add_argument("-ml", "--marker-length", type=float, default= 0.016,
+	help="Length of one marker in m")
 ap.add_argument("-W", "--width", type=int, default= 12,
 	help="Number of columns of board")
 ap.add_argument("-H", "--height", type=int, default= 9,

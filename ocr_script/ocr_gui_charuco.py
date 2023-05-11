@@ -825,7 +825,7 @@ class OCR_GUI:
             try:
                 self.indic_surf_canvas.delete(self.found_surface)
             except:
-                print(self.found_surface)
+                print("Problem by found_surface deletion: ", self.found_surface)
 
         surface_img_coords = [self.find_img_coords(point_coords) for point_coords in self.surface_world_coords]
         self.found_surface = self.indic_surf_canvas.create_polygon(surface_img_coords, outline='green', width=3)
@@ -904,9 +904,7 @@ class OCR_GUI:
         # Extract the pixel coordinates of the projected point
         pixel_coords = tuple(map(int, point_2d[0, 0]))
 
-        print(pixel_coords)
-
-        # Transform coordinates of the point for the resized canvas
+        # Transform coordinates of the point for the canvas scale
         pixel_coords = int(pixel_coords[0] / self.width_ratio), int(pixel_coords[1] / self.height_ratio)
 
         return pixel_coords
