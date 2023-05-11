@@ -61,7 +61,7 @@ for id in args["id"]:
 	# write the generated ArUCo tag to disk and then display it to our
 	# screen
 
-	output = "aruco_code/tags/" + args["type"] + "_id" + str(id) + ".png"
+	output = "aruco_code/aruco_markers/" + args["type"] + "_id" + str(id) + ".png"
 
 	if not cv2.imwrite(output, tag):
 		raise Exception("Could not write image")
