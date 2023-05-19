@@ -728,6 +728,36 @@ class OCR_GUI:
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         resized_img = cv2.resize(frame, (resized_width, resized_height))
 
+
+        # aruco_dict = cv2.aruco.getPredefinedDictionary(ARUCO_DICT[self.aruco_dropdown.get()])
+        # gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        # corners, ids, _ = cv2.aruco.detectMarkers(gray, aruco_dict)
+        # aruco.drawDetectedMarkers(frame, corners)
+
+        # # If there are markers found by detector
+        # if np.all(ids is not None):
+            
+        #     # Iterate over detected markers and estimate their pose
+        #     for id in ids:  
+        #         index = np.where(ids == id)[0][0]
+        #         if id == 1:
+        #             # Estimate pose of each marker and return the values rvec and tvec
+        #             self.rvec, self.tvec, _ = aruco.estimatePoseSingleMarkers(corners[index], self.aruco_size, self.mtx, self.dist)
+        #             (self.rvec - self.tvec).any()  # get rid of numpy value array error
+        #             cv2.drawFrameAxes(frame, self.mtx, self.dist, self.rvec, self.tvec, 0.1, 3)
+
+        # if self.display_surface_on:
+        #     self.display_surface()
+
+        # # Convert the frame to PIL Image format
+        # frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        # resized_img = cv2.resize(frame, (resized_width, resized_height))
+
+
+
+
+
+
         img = Image.fromarray(resized_img)
 
         # Convert the PIL Image to ImageTk format
@@ -789,12 +819,12 @@ class OCR_GUI:
         
         inv_mtx = np.linalg.inv(self.mtx)
 
-        step1 = inv_mtx @ (self.s * x)
-        step2 = step1 - self.tvec.reshape((3,1))
-        step3 = inv_rodr @ step2
-        line_equation = step3
+        # step1 = inv_mtx @ (self.s * x)
+        # step2 = step1 - self.tvec.reshape((3,1))
+        # step3 = inv_rodr @ step2
+        # line_equation = step3
 
-        # line_equation = inv_rodr @ ((inv_mtx @ (self.s * x)) - self.tvec.reshape((3,1)))
+        line_equation = inv_rodr @ ((inv_mtx @ (self.s * x)) - self.tvec.reshape((3,1)))
         # print (f"line equation shape:\n{line_equation.shape}")
         # print (f"line equation:\n{line_equation}")
         return line_equation
@@ -913,137 +943,6 @@ class OCR_GUI:
 
 
 
-def estimate_3d_coordinates(points, num_iterations=100, sample_size=3, threshold=0.1):
-    best_model = None
-    best_inliers = []
-    
-    for _ in range(num_iterations):
-        # Randomly select a minimal sample
-        sample_indices = np.random.choice(len(points), size=sample_size, replace=False)
-        sample_points = points[sample_indices]
-        
-        # Fit a model (e.g., plane or sphere) to the sample points
-        
-        # Evaluate the model and find inliers
-        residuals = calculate_residuals(points, sample_points, best_model)
-        inliers = np.where(residuals < threshold)[0]
-        
-        # Check if this model has more inliers than the previous best model
-        if len(inliers) > len(best_inliers):
-            best_model = fit_model(points[inliers])
-            best_inliers = inliers
-            
-    # Refit the model using all inliers
-    final_model = fit_model(points[best_inliers])
-    
-    # Return the estimated 3D coordinates
-    estimated_coordinates = least_squares_estimation(points[best_inliers], final_model)
-    print(np.shape(estimated_coordinates))
-    
-    return estimated_coordinates
-
-def calculate_residuals(points, sample_points, model):
-    # Calculate residuals between the model and all points
-    residuals = np.abs(distance_to_model(points, sample_points, model))
-    return residuals
-
-def fit_model(data):
-    """Fits a line model to the given 2D data points using least squares."""
-    x = data[:, 0]
-    y = data[:, 1]
-    A = np.vstack([x, np.ones_like(x)]).T
-    m, c = np.linalg.lstsq(A, y, rcond=None)[0]
-    return m, c
-
-def distance_to_model(data, model):
-    """Calculates the perpendicular distance from each data point to the line model."""
-    m, c = model
-    x = data[:, 0]
-    y = data[:, 1]
-    distances = np.abs(m * x - y + c) / np.sqrt(m**2 + 1)
-    return distances
-
-def least_squares_estimation(data, num_iterations, threshold):
-    """Performs RANSAC least squares estimation to robustly fit a line model to the data."""
-    best_model = None
-    best_inliers = None
-    best_num_inliers = 0
-
-    for i in range(num_iterations):
-        # Randomly sample two points from the data
-        sample_indices = np.random.choice(data.shape[0], 2, replace=False)
-        sample = data[sample_indices]
-
-        # Fit a model to the sampled points
-        model = fit_model(sample)
-
-        # Calculate the distances from all points to the model
-        distances = distance_to_model(data, model)
-
-        # Count the number of inliers (points within the threshold)
-        inliers = distances < threshold
-        num_inliers = np.count_nonzero(inliers)
-
-        # Check if this model is the best one so far
-        if num_inliers > best_num_inliers:
-            best_model = model
-            best_inliers = inliers
-            best_num_inliers = num_inliers
-
-    # Refit the model using all the inliers
-    inlier_points = data[best_inliers]
-    best_model = fit_model(inlier_points)
-
-    return best_model
-
-
-
-
-
-def least_squares_average(points, n_outliers=0.2, max_iterations=100, tolerance=1e-6):
-    """Computes the least squares estimate of the average point for a list of 3D points.
-
-    Args:
-        points: A list of 3D points.
-        n_outliers: The percentage of distances to discard as outliers.
-        max_iterations: The maximum number of iterations to perform.
-        tolerance: The tolerance for convergence.
-
-    Returns:
-        The least squares estimate of the average point.
-    """
-    # Convert points to a numpy array for easier computation.
-    points = np.array(points)
-
-    # Choose an initial estimate for the average point.
-    average = np.mean(points, axis=0)
-
-    for iteration in range(max_iterations):
-        # Compute the distance between each point and the current estimate.
-        distances = np.linalg.norm(points - average, axis=1)
-
-        # Sort the distances in ascending order.
-        sorted_distances = np.sort(distances)
-
-        # Discard the top n percent of the distances as outliers.
-        n = int(n_outliers * len(points))
-        inliers = sorted_distances[n:]
-
-        # Compute the least squares estimate of the average point using the remaining distances.
-        if len(inliers) == 0:
-            # All points were outliers, so we can't compute a least squares estimate.
-            break
-
-        new_average = np.mean(points[distances <= inliers[-1]], axis=0)
-
-        # Check for convergence.
-        if np.allclose(average, new_average, atol=tolerance):
-            break
-
-        average = new_average
-
-    return average
-
 def get_available_cameras():
     available_cameras = []
     index = 0
@@ -1089,3 +988,130 @@ root.mainloop()
 
 
 
+
+# def estimate_3d_coordinates(points, num_iterations=100, sample_size=3, threshold=0.1):
+#     best_model = None
+#     best_inliers = []
+    
+#     for _ in range(num_iterations):
+#         # Randomly select a minimal sample
+#         sample_indices = np.random.choice(len(points), size=sample_size, replace=False)
+#         sample_points = points[sample_indices]
+        
+#         # Fit a model (e.g., plane or sphere) to the sample points
+        
+#         # Evaluate the model and find inliers
+#         residuals = calculate_residuals(points, sample_points, best_model)
+#         inliers = np.where(residuals < threshold)[0]
+        
+#         # Check if this model has more inliers than the previous best model
+#         if len(inliers) > len(best_inliers):
+#             best_model = fit_model(points[inliers])
+#             best_inliers = inliers
+            
+#     # Refit the model using all inliers
+#     final_model = fit_model(points[best_inliers])
+    
+#     # Return the estimated 3D coordinates
+#     estimated_coordinates = least_squares_estimation(points[best_inliers], final_model)
+#     print(np.shape(estimated_coordinates))
+    
+#     return estimated_coordinates
+
+# def calculate_residuals(points, sample_points, model):
+#     # Calculate residuals between the model and all points
+#     residuals = np.abs(distance_to_model(points, sample_points, model))
+#     return residuals
+
+# def fit_model(data):
+#     """Fits a line model to the given 2D data points using least squares."""
+#     x = data[:, 0]
+#     y = data[:, 1]
+#     A = np.vstack([x, np.ones_like(x)]).T
+#     m, c = np.linalg.lstsq(A, y, rcond=None)[0]
+#     return m, c
+
+# def distance_to_model(data, model):
+#     """Calculates the perpendicular distance from each data point to the line model."""
+#     m, c = model
+#     x = data[:, 0]
+#     y = data[:, 1]
+#     distances = np.abs(m * x - y + c) / np.sqrt(m**2 + 1)
+#     return distances
+
+# def least_squares_estimation(data, num_iterations, threshold):
+#     """Performs RANSAC least squares estimation to robustly fit a line model to the data."""
+#     best_model = None
+#     best_inliers = None
+#     best_num_inliers = 0
+
+#     for i in range(num_iterations):
+#         # Randomly sample two points from the data
+#         sample_indices = np.random.choice(data.shape[0], 2, replace=False)
+#         sample = data[sample_indices]
+
+#         # Fit a model to the sampled points
+#         model = fit_model(sample)
+
+#         # Calculate the distances from all points to the model
+#         distances = distance_to_model(data, model)
+
+#         # Count the number of inliers (points within the threshold)
+#         inliers = distances < threshold
+#         num_inliers = np.count_nonzero(inliers)
+
+#         # Check if this model is the best one so far
+#         if num_inliers > best_num_inliers:
+#             best_model = model
+#             best_inliers = inliers
+#             best_num_inliers = num_inliers
+
+#     # Refit the model using all the inliers
+#     inlier_points = data[best_inliers]
+#     best_model = fit_model(inlier_points)
+
+#     return best_model
+
+# def least_squares_average(points, n_outliers=0.2, max_iterations=100, tolerance=1e-6):
+#     """Computes the least squares estimate of the average point for a list of 3D points.
+
+#     Args:
+#         points: A list of 3D points.
+#         n_outliers: The percentage of distances to discard as outliers.
+#         max_iterations: The maximum number of iterations to perform.
+#         tolerance: The tolerance for convergence.
+
+#     Returns:
+#         The least squares estimate of the average point.
+#     """
+#     # Convert points to a numpy array for easier computation.
+#     points = np.array(points)
+
+#     # Choose an initial estimate for the average point.
+#     average = np.mean(points, axis=0)
+
+#     for iteration in range(max_iterations):
+#         # Compute the distance between each point and the current estimate.
+#         distances = np.linalg.norm(points - average, axis=1)
+
+#         # Sort the distances in ascending order.
+#         sorted_distances = np.sort(distances)
+
+#         # Discard the top n percent of the distances as outliers.
+#         n = int(n_outliers * len(points))
+#         inliers = sorted_distances[n:]
+
+#         # Compute the least squares estimate of the average point using the remaining distances.
+#         if len(inliers) == 0:
+#             # All points were outliers, so we can't compute a least squares estimate.
+#             break
+
+#         new_average = np.mean(points[distances <= inliers[-1]], axis=0)
+
+#         # Check for convergence.
+#         if np.allclose(average, new_average, atol=tolerance):
+#             break
+
+#         average = new_average
+
+#     return average
