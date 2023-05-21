@@ -896,7 +896,7 @@ class OCR_GUI:
 
         canvas_width = self.indic_surf_canvas.winfo_width()
         canvas_height = self.indic_surf_canvas.winfo_height()
-        print("in function: ", canvas_width, canvas_height)
+        print("Size in function: ", canvas_width, canvas_height)
         resized_img = cv2.resize(frame, (canvas_width, canvas_height))
 
         img = Image.fromarray(resized_img)
