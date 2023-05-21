@@ -46,7 +46,6 @@ class OCR_GUI:
 
         self.ocr_on = False
         self.ocr_count = 0
-        self.reader = easyocr.Reader(['en'], gpu=False)
 
         # Main window
         self.master = master
@@ -80,7 +79,7 @@ class OCR_GUI:
         self.canvas_image = self.canvas.create_image(0, 0, anchor=tk.NW)
 
         # "Indicate display surface" button for single aruco method
-        self.indicate_surface_button = ttk.Button(self.left_frame, text="Indicate display surface", command=self.indicate_surface_window_init)
+        self.indicate_surface_button = ttk.Button(self.left_frame, text="Indicate display surface", command=self.new_window_thread)
         self.indicate_surface_button.pack(side=tk.BOTTOM, padx=15, pady=5)
         
 
@@ -93,7 +92,7 @@ class OCR_GUI:
         self.cam_input.grid(row=0, column=0, padx=5, pady=(20, 5))
         self.camera_inputs = get_available_cameras()
         self.camera_input_dropdown = ttk.Combobox(self.parameters_frame, value=self.camera_inputs)
-        self.camera_input_dropdown.current(0)
+        self.camera_input_dropdown.current(1)
         self.selected_camera_input = int(self.camera_input_dropdown.get())
         self.camera_input_dropdown.grid(row=0, column=1, padx=5, pady=(20, 5))
         self.camera_input_dropdown.bind("<<ComboboxSelected>>", lambda event: self.update_cam_input())
@@ -200,7 +199,7 @@ class OCR_GUI:
         self.cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
         self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.calib_w)
         self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.calib_h)
-        self.update_master()
+        # self.update_master()
         
         # Resize the original image
         width = self.cap.get(cv2.CAP_PROP_FRAME_WIDTH)
@@ -213,6 +212,7 @@ class OCR_GUI:
         self.show_camera()
         
         self.frame_counter = 0
+        self.saved_surfaces_counter = 0
         self.show_rectified_camera()
 
         # Rectangle drawings on canvas
@@ -323,7 +323,7 @@ class OCR_GUI:
             self.charuco_height_entry.grid_remove()
 
     def update_master(self):
-        self.ret, self.cam_frame = self.cap.read()
+        # self.ret, self.cam_frame = self.cap.read()
         self.master.update()
         self.master.after(10, self.update_master)
         
@@ -336,6 +336,7 @@ class OCR_GUI:
             if len(set(vars)) != len(vars) or not all(vars):
                 messagebox.showerror("Error", "All variables need names, and they need to be different.")
             else:
+                self.reader = easyocr.Reader(['en'], gpu=False)
                 self.ocr_on = True
                 self.start_button.config(text="Stop OCR")
                 self.canvas.unbind("<ButtonPress-1>")
@@ -469,6 +470,8 @@ class OCR_GUI:
 
     def show_camera(self):
 
+        self.master.update()
+
         # Get the width and height of the actual image
         width = self.cap.get(cv2.CAP_PROP_FRAME_WIDTH)
         height = self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
@@ -482,12 +485,19 @@ class OCR_GUI:
             
         aruco_dict = cv2.aruco.getPredefinedDictionary(ARUCO_DICT[self.aruco_dropdown.get()])
 
-        # Get the latest frame and convert into Image
-        if not self.ret:
+        # # Get the latest frame and convert into Image
+        # if not self.ret:
+        #     self.video_label.after(30, self.show_camera)
+        #     return
+
+        # frame = copy.copy(self.cam_frame)
+
+        ret, frame = self.cap.read()
+        if not ret:
             self.video_label.after(30, self.show_camera)
             return
 
-        frame = copy.copy(self.cam_frame)
+
         corners, ids, _ = cv2.aruco.detectMarkers(frame, aruco_dict)
 
         # Draw A square around the markers
@@ -515,11 +525,12 @@ class OCR_GUI:
  
     def show_rectified_camera(self):
                 
-        # Read a new frame from the camera
-        frame = copy.copy(self.cam_frame)
-        if not self.ret:  
+
+        ret, frame = self.cap.read()
+        if not ret:
             self.canvas.after(30, self.show_rectified_camera)
             return
+        
         
         # Get video feed resolution
         width  = self.cap.get(cv2.CAP_PROP_FRAME_WIDTH)
@@ -552,9 +563,7 @@ class OCR_GUI:
                 frame = aruco.drawDetectedCornersCharuco(frame, charucoCorners, charucoIds, (0,255,0))
                 self.retval, self.rvec, self.tvec = aruco.estimatePoseCharucoBoard(charucoCorners, charucoIds, board, self.mtx, self.dist, np.zeros((3, 1)), np.zeros((3, 1)))
                 
-                if self.retval and len(self.surface_line_eqs) >= 2:
-
-                    print(len(self.surface_line_eqs))
+                if self.retval and self.saved_surfaces_counter >= 2:
 
                     self.surface_img_coords = [self.find_img_coords(point_coords) for point_coords in self.surface_world_coords]
 
@@ -567,13 +576,16 @@ class OCR_GUI:
                     width_ratio = width / self.new_width
                     height_ratio = height / self.new_height
                     for point in self.surface_img_coords:
-                        point_canvas_coords = int(point[0] / width_ratio), int(point[1] / height_ratio)
+                        # point_canvas_coords = [int(point[0] / width_ratio), int(point[1] / height_ratio)]
+                        point_canvas_coords = [int(point[0]), int(point[1])]
                         warp_input_pts.append(point_canvas_coords)
+                    warp_input_pts = np.float32(warp_input_pts)
+                    # warp_input_pts = np.array([np.float32(coord) for coord in warp_input_pts])
 
 
 
-                # elif self.retval:
-                #     frame = cv2.drawFrameAxes(frame, self.mtx, self.dist, self.rvec, self.tvec, 0.1)
+                elif self.retval:
+                    frame = cv2.drawFrameAxes(frame, self.mtx, self.dist, self.rvec, self.tvec, 0.1)
             
 
         # Warp with four markers method
@@ -620,14 +632,19 @@ class OCR_GUI:
                     
                 
         # If surface coordinates are found
-        # print(warp_input_pts)
         if len(warp_input_pts) > 0:
-
+            
             # Compute the perspective transform M and warp frame
             warp_output_pts = np.float32([[0, 0],
                                     [0, self.new_height - 1],
                                     [self.new_width - 1, self.new_height - 1],
                                     [self.new_width - 1, 0]])
+
+            # print(warp_input_pts.shape)
+            # print(warp_input_pts)
+            # print(warp_output_pts.shape)
+            # print(warp_output_pts)
+
             M = cv2.getPerspectiveTransform(warp_input_pts,warp_output_pts)
 
             frame = cv2.warpPerspective(frame,M,(self.new_width, self.new_height),flags=cv2.INTER_LINEAR)
@@ -715,14 +732,18 @@ class OCR_GUI:
 
 
         # Resize for max image size within original size while keeping surface ratio
-        scale = surface_h / surface_w
+        new_width, new_height = resize_with_ratio(self.calib_w, self.calib_h, surface_w, surface_h)
 
-        if self.calib_h * scale > self.calib_w:
-            new_width = self.calib_w
-            new_height = int(self.calib_w / scale)
-        else:
-            new_height = self.calib_h
-            new_width = int(self.calib_h * scale)
+
+
+        # scale = surface_h / surface_w
+
+        # if self.calib_h * scale > self.calib_w:
+        #     new_width = self.calib_w
+        #     new_height = int(self.calib_w / scale)
+        # else:
+        #     new_height = self.calib_h
+        #     new_width = int(self.calib_h * scale)
     
         return new_width, new_height
 
@@ -741,16 +762,18 @@ class OCR_GUI:
         height_CD = np.linalg.norm(tvecs[indexC]-tvecs[indexD]) - self.aruco_size
         surface_h = max(height_AB, height_CD)
 
+        new_width, new_height = resize_with_ratio(self.calib_w, self.calib_h, surface_w, surface_h)
 
-        # Resize for max image size within original size while keeping surface ratio
-        scale = surface_h / surface_w
 
-        if self.calib_h * scale > self.calib_w:
-            new_width = self.calib_w
-            new_height = int(self.calib_w / scale)
-        else:
-            new_height = self.calib_h
-            new_width = int(self.calib_h * scale)
+        # # Resize for max image size within original size while keeping surface ratio
+        # scale = surface_h / surface_w
+
+        # if self.calib_h * scale > self.calib_w:
+        #     new_width = self.calib_w
+        #     new_height = int(self.calib_w / scale)
+        # else:
+        #     new_height = self.calib_h
+        #     new_width = int(self.calib_h * scale)
     
         return new_width, new_height
   
@@ -758,14 +781,19 @@ class OCR_GUI:
 
     # Methods for one marker method
 
+    def new_window_thread(self):
+
+        second_window_thread = threading.Thread(target=self.indicate_surface_window_init)
+        second_window_thread.start()
+
     def indicate_surface_window_init(self):
 
         self.indic_surface_window = tk.Toplevel(self.master)
         self.indic_surface_window.title("Indicate Target Surface")
 
         self.surface_polygon = None
-        self.surface_coords = []
-        self.saved_coords_label = ttk.Label(self.indic_surface_window, text=f"Number of saved surfaces: {len(self.surface_coords)} / 2")
+        self.saved_surfaces_counter = 0
+        self.saved_coords_label = ttk.Label(self.indic_surface_window, text=f"Number of saved surfaces: {self.saved_surfaces_counter} / 2")
         self.saved_coords_label.pack()
 
         # Create canvas to display video feed
@@ -773,13 +801,15 @@ class OCR_GUI:
         max_height = 720
         width = self.cap.get(cv2.CAP_PROP_FRAME_WIDTH)
         height = self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
-        resized_width, resized_height = resize_with_aspect(max_width, max_height, width, height)
+        resized_width, resized_height = resize_with_ratio(max_width, max_height, width, height)
         self.width_ratio = width / resized_width
         self.height_ratio = height / resized_height
         self.indic_surf_canvas = tk.Canvas(self.indic_surface_window, width=resized_width,
                                 height=resized_height, bd=2, bg="grey")
         self.indic_surf_canvas_image = self.indic_surf_canvas.create_image(0, 0, anchor=tk.NW)
         self.indic_surf_canvas.pack()
+        self.indic_surf_canvas.bind("<Button-1>", self.draw_on_press)
+        self.indic_surf_canvas.bind("<Motion>", self.draw_on_move)
 
         # Create "Confirm surface" button
         confirm_button = tk.Button(self.indic_surface_window, text="Confirm surface", command=self.save_coords)
@@ -794,30 +824,29 @@ class OCR_GUI:
         cancel_button = tk.Button(self.indic_surface_window, text="Cancel", command=self.indic_surface_window.destroy)
         cancel_button.pack(side="right", fill= "both",  expand=tk.YES, pady=10)
 
+        # Initialize variables
         self.move_shape = None
-        self.indic_surf_canvas.bind("<Button-1>", self.draw_on_press)
-        self.indic_surf_canvas.bind("<Motion>", self.draw_on_move)
         self.coords = []
         self.point_coords = []
+        self.surface_world_coords = []
+        self.surface_line_eqs = []
 
         # self.update_surface_window()
         self.update_indic_surf_canvas(resized_width, resized_height)
     
-    # def update_surface_window(self):
-    #     self.ret, self.cam_frame = self.cap.read()
-    #     self.indic_surface_window.update()
-    #     self.indic_surface_window.after(10, self.update_master)
+    def update_surface_window(self):
+        self.indic_surface_window.update()
+        self.indic_surface_window.after(10, self.update_surface_window)
 
     def update_indic_surf_canvas(self, resized_width, resized_height):
 
-        self.ret, self.cam_frame = self.cap.read()
         self.indic_surface_window.update()
         
-        frame = copy.copy(self.cam_frame)
-
-        if not self.ret:
+        ret, frame = self.cap.read()
+        if not ret:
             messagebox.showerror("Error", "No image could be read from the camera")
             return
+        
 
         aruco.drawDetectedMarkers(frame, self.corners)
 
@@ -889,19 +918,33 @@ class OCR_GUI:
                                                     outline='red', width=2)
 
     def save_coords(self):
+
         if len(self.coords) != 4:
             messagebox.showerror("Error", "Surface should have four corners", parent= self.indic_surface_window)
             return
-            
-        self.surface_coords.append(self.coords)
-        self.saved_coords_label.config(text=f"Number of saved surfaces: {len(self.surface_coords)} / 2")
         
-        # Transform the coordinates of the pixel to the original size of the frame
+        if not self.retval:
+            messagebox.showerror("Error", "Pose estimation of charuco board could not be calculated", parent= self.indic_surface_window)
+            return
+        
+        self.saved_surfaces_counter += 1
+        self.saved_coords_label.config(text=f"Number of saved surfaces: {self.saved_surfaces_counter} / 2")
+        
+        # Transform the coordinates of the canvas pixel to the original size of the frame
         self.coords = [(int(x * self.width_ratio), int(y * self.height_ratio)) for x,y in self.coords]
 
         self.line_eq = [self.get_line_equation(point) for point in self.coords]
-
         self.surface_line_eqs.append(self.line_eq)
+        
+        if self.saved_surfaces_counter >= 2:
+            new_world_coords = []
+            for point in range(4):
+                # Get all line equations for one point
+                point_lines_w_coords = [surface_line[point] for surface_line in self.surface_line_eqs]
+                # Find world coordinates for that point
+                point_world_coords = self.find_point_world_coords(point_lines_w_coords)
+                new_world_coords.append(point_world_coords)
+            self.surface_world_coords = new_world_coords
 
         self.indic_surf_canvas.delete(self.finished_shape)
         self.coords = []
@@ -917,27 +960,17 @@ class OCR_GUI:
         inv_mtx = np.linalg.inv(self.mtx)
 
         line_equation = inv_rodr @ ((inv_mtx @ (self.s * x)) - self.tvec.reshape((3,1)))
-        # print (f"line equation shape:\n{line_equation.shape}")
-        # print (f"line equation:\n{line_equation}")
         return line_equation
 
     def toggle_display_surface(self):
 
-        if len(self.surface_line_eqs) < 2:
+        if self.saved_surfaces_counter < 2:
             messagebox.showerror("Error", "Indicate surface at least twice.", parent= self.indic_surface_window)
             return
         
         if self.display_surface_on:
             self.indic_surf_canvas.delete(self.surface_polygon)
             self.surface_polygon = None
-        else:
-            self.surface_world_coords = []
-            for point in range(4):
-                # Get all line equations for one point
-                point_lines_w_coords = [surface_line[point] for surface_line in self.surface_line_eqs]
-                # Find world coordinates for that point
-                point_world_coords = self.find_point_world_coords(point_lines_w_coords)
-                self.surface_world_coords.append(point_world_coords)
         
         self.display_surface_on = not self.display_surface_on
 
@@ -1046,7 +1079,7 @@ def get_available_cameras():
         cap = cv2.VideoCapture(index, cv2.CAP_DSHOW)
     return available_cameras
 
-def resize_with_aspect(max_width, max_height, width, height):
+def resize_with_ratio(max_width, max_height, width, height):
 
     # Calculate the aspect ratio of the original image
     aspect_ratio = width / float(height)
