@@ -46,6 +46,7 @@ class OCR_GUI:
 
         self.ocr_on = False
         self.ocr_count = 0
+        # self.second_window_thread = None
 
         # Main window
         self.master = master
@@ -79,7 +80,7 @@ class OCR_GUI:
         self.canvas_image = self.canvas.create_image(0, 0, anchor=tk.NW)
 
         # "Indicate display surface" button for single aruco method
-        self.indicate_surface_button = ttk.Button(self.left_frame, text="Indicate display surface", command=self.new_window_thread)
+        self.indicate_surface_button = ttk.Button(self.left_frame, text="Indicate display surface", command=self.indicate_surface_window_init)
         self.indicate_surface_button.pack(side=tk.BOTTOM, padx=15, pady=5)
         
 
@@ -115,10 +116,10 @@ class OCR_GUI:
         self.frequence_label = ttk.Label(self.parameters_frame, text="OCR frequence [seconds between pictures]:")
         self.frequence_label.grid(row=2, column=0, padx=5, pady=5)
         self.frequence_entry = ttk.Entry(self.parameters_frame)
-        self.frequence_entry.bind("<Return>", lambda event: on_frequence_entry)
-        self.frequence_entry.insert(-1, "1")
-        self.frequence_entry.grid(row=2, column=1, padx=5, pady=5)
         self.frequence = 1
+        self.frequence_entry.insert(-1, "1")
+        self.frequence_entry.bind("<Return>", lambda event: on_frequence_entry())
+        self.frequence_entry.grid(row=2, column=1, padx=5, pady=5)
 
         def on_frequence_entry():
             try:
@@ -138,17 +139,18 @@ class OCR_GUI:
         self.aruco_size_label = ttk.Label(self.parameters_frame, text="Aruco marker size [meters]:")
         self.aruco_size_label.grid(row=4, column=0, padx=5, pady=5)
         self.aruco_size_entry = ttk.Entry(self.parameters_frame)
-        self.aruco_size_entry.bind("<Return>", lambda event: on_size_entry)
-        self.aruco_size_entry.insert(-1, "0.016")
-        self.aruco_size_entry.grid(row=4, column=1, padx=5, pady=5)
         self.aruco_size = 0.016
+        self.aruco_size_entry.insert(-1, "0.016")
+        self.aruco_size_entry.bind("<Return>", lambda event: on_aruco_size_entry())
+        self.aruco_size_entry.grid(row=4, column=1, padx=5, pady=5)
 
-        def on_size_entry():
+        def on_aruco_size_entry():
             try:
                 self.aruco_size = float(self.aruco_size_entry.get())
             except ValueError:
                 messagebox.showerror("Error", "Please enter a valid number for the aruco marker size.")
-        
+
+
 
         # Additional parameters for charuco board
 
@@ -156,14 +158,14 @@ class OCR_GUI:
         self.square_size_label = ttk.Label(self.parameters_frame, text="Board square size [meters]:")
         self.square_size_label.grid(row=5, column=0, padx=5, pady=5)
         self.square_size_entry = ttk.Entry(self.parameters_frame)
-        self.square_size_entry.bind("<Return>", lambda event: on_square_size_entry)
-        self.square_size_entry.insert(-1, "0.02")
-        self.square_size_entry.grid(row=5, column=1, padx=5, pady=5)
         self.square_size = 0.02
+        self.square_size_entry.insert(-1, "0.02")
+        self.square_size_entry.bind("<Return>", lambda event: on_square_size_entry())
+        self.square_size_entry.grid(row=5, column=1, padx=5, pady=5)
 
         def on_square_size_entry():
             try:
-                self.square_size = float(self.aruco_size_entry.get())
+                self.square_size = float(self.square_size_entry.get())
             except ValueError:
                 messagebox.showerror("Error", "Please enter a valid number for the board's square size.")
 
@@ -171,25 +173,27 @@ class OCR_GUI:
         self.charuco_size_label = ttk.Label(self.parameters_frame, text="Board size [w-h]:")
         self.charuco_size_label.grid(row=6, column=0, padx=5, pady=(5,20))
         self.charuco_width_entry = ttk.Entry(self.parameters_frame)
-        self.charuco_width_entry.bind("<Return>", lambda event: on_charuco_width_entry)
-        self.charuco_width_entry.insert(-1, "4")
-        self.charuco_width_entry.grid(row=6, column=1, padx=5, pady=(5,20))
         self.charuco_width = 4
+        self.charuco_width_entry.insert(-1, "4")
+        self.charuco_width_entry.bind("<Return>", lambda event: on_charuco_width_entry())
+        self.charuco_width_entry.bind("<Return>", lambda event: on_charuco_height_entry(), add='+')
+        self.charuco_width_entry.grid(row=6, column=1, padx=5, pady=(5,20))
         self.charuco_height_entry = ttk.Entry(self.parameters_frame)
-        self.charuco_height_entry.bind("<Return>", lambda event: on_charuco_height_entry)
-        self.charuco_height_entry.insert(-1, "4")
-        self.charuco_height_entry.grid(row=6, column=2, padx=5, pady=(5,20))
         self.charuco_height = 4
+        self.charuco_height_entry.insert(-1, "4")
+        self.charuco_height_entry.bind("<Return>", lambda event: on_charuco_height_entry())
+        self.charuco_height_entry.bind("<Return>", lambda event: on_charuco_width_entry(), add='+')
+        self.charuco_height_entry.grid(row=6, column=2, padx=5, pady=(5,20))
 
         def on_charuco_width_entry():
             try:
-                self.charuco_width = int(self.aruco_size_entry.get())
+                self.charuco_width = int(self.charuco_width_entry.get())
             except ValueError:
                 messagebox.showerror("Error", "Please enter a valid number for the board's width.")
 
         def on_charuco_height_entry():
             try:
-                self.charuco_height = int(self.aruco_size_entry.get())
+                self.charuco_height = int(self.charuco_height_entry.get())
             except ValueError:
                 messagebox.showerror("Error", "Please enter a valid number for the board's height.")
         
@@ -525,6 +529,8 @@ class OCR_GUI:
  
     def show_rectified_camera(self):
                 
+        # if self.second_window_thread is not None:
+        #     print(self.second_window_thread.is_alive())
 
         ret, frame = self.cap.read()
         if not ret:
@@ -544,7 +550,7 @@ class OCR_GUI:
         # Detect markers in the frame
         aruco_dict = cv2.aruco.getPredefinedDictionary(ARUCO_DICT[self.aruco_dropdown.get()])
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        self.corners, ids, rejectedImgPoints = cv2.aruco.detectMarkers(gray, aruco_dict)
+        corners, ids, rejectedImgPoints = cv2.aruco.detectMarkers(gray, aruco_dict)
 
         warp_input_pts = []
 
@@ -554,16 +560,16 @@ class OCR_GUI:
         if method == "one_marker":
 
             board = aruco.CharucoBoard((self.charuco_width, self.charuco_height), self.square_size, self.aruco_size, aruco_dict)
-            aruco.refineDetectedMarkers(gray, board, self.corners, ids, rejectedImgPoints)
+            aruco.refineDetectedMarkers(gray, board, corners, ids, rejectedImgPoints)
             
             # If there are markers found by detector
             if np.all(ids is not None):
                 
-                charucoretval, charucoCorners, charucoIds = aruco.interpolateCornersCharuco(self.corners, ids, gray, board)
+                charucoretval, charucoCorners, charucoIds = aruco.interpolateCornersCharuco(corners, ids, gray, board)
                 frame = aruco.drawDetectedCornersCharuco(frame, charucoCorners, charucoIds, (0,255,0))
-                self.retval, self.rvec, self.tvec = aruco.estimatePoseCharucoBoard(charucoCorners, charucoIds, board, self.mtx, self.dist, np.zeros((3, 1)), np.zeros((3, 1)))
+                retval, rvec, tvec = aruco.estimatePoseCharucoBoard(charucoCorners, charucoIds, board, self.mtx, self.dist, np.zeros((3, 1)), np.zeros((3, 1)))
                 
-                if self.retval and self.saved_surfaces_counter >= 2:
+                if retval and self.saved_surfaces_counter >= 2:
 
                     self.surface_img_coords = [self.find_img_coords(point_coords) for point_coords in self.surface_world_coords]
 
@@ -584,8 +590,8 @@ class OCR_GUI:
 
 
 
-                elif self.retval:
-                    frame = cv2.drawFrameAxes(frame, self.mtx, self.dist, self.rvec, self.tvec, 0.1)
+                elif retval:
+                    frame = cv2.drawFrameAxes(frame, self.mtx, self.dist, rvec, tvec, 0.1)
             
 
         # Warp with four markers method
@@ -600,7 +606,7 @@ class OCR_GUI:
                     index = np.where(ids == id)[0][0]
                     
                     # Estimate pose of each marker and return the values rvec and tvec
-                    rvec, tvec, _ = aruco.estimatePoseSingleMarkers(self.corners[index], self.aruco_size, self.mtx, self.dist)
+                    rvec, tvec, _ = aruco.estimatePoseSingleMarkers(corners[index], self.aruco_size, self.mtx, self.dist)
                     tvecs.append(tvec)
                     rvecs.append(rvec)
         
@@ -611,13 +617,15 @@ class OCR_GUI:
                     for id in ids:  
                         index = np.where(ids == id)[0][0]
                         if id == 1:
-                            roi_corners["A"] = [int(self.corners[index][0][2][0]), int(self.corners[index][0][2][1])] # Bottom right corner of ID 1
+                            roi_corners["A"] = [int(corners[index][0][2][0]), int(corners[index][0][2][1])] # Bottom right corner of ID 1
                         if id == 2:
-                            roi_corners["B"] = [int(self.corners[index][0][1][0]), int(self.corners[index][0][1][1])] # Top right corner of ID 2
+                            # roi_corners["B"] = [int(corners[index][0][1][0]), int(corners[index][0][1][1])] # Top right corner of ID 2
+                            roi_corners["D"] = [int(corners[index][0][3][0]), int(corners[index][0][3][1])] # Bottom left corner of ID 2
                         if id == 3:
-                            roi_corners["C"] = [int(self.corners[index][0][0][0]), int(self.corners[index][0][0][1])] # Top left corner of ID 3
+                            roi_corners["C"] = [int(corners[index][0][0][0]), int(corners[index][0][0][1])] # Top left corner of ID 3
                         if id == 4:
-                            roi_corners["D"] = [int(self.corners[index][0][3][0]), int(self.corners[index][0][3][1])] # Bottom left corner of ID 4
+                            # roi_corners["D"] = [int(corners[index][0][3][0]), int(corners[index][0][3][1])] # Bottom left corner of ID 4
+                            roi_corners["B"] = [int(corners[index][0][1][0]), int(corners[index][0][1][1])] # Top right corner of ID 4
                     
                     warp_input_pts = np.float32([roi_corners["A"], roi_corners["B"], roi_corners["C"], roi_corners["D"]])
 
@@ -628,7 +636,28 @@ class OCR_GUI:
                 
                 else:
                     self.frame_counter = 0  
-                    aruco.drawDetectedMarkers(frame, self.corners)
+                    # aruco.drawDetectedMarkers(frame, corners)
+
+                    # Draw marker lines and distance
+                    for i, corner in enumerate(corners):
+                        
+                        # Draw marker axes from pose estimation
+                        cv2.drawFrameAxes(frame, self.mtx, self.dist, rvecs[i], tvecs[i], 0.1, 3)
+                        
+                        # Draw lines between corners
+                        pts = np.int32(corner[0])
+                        cv2.line(frame, tuple(pts[0]), tuple(pts[1]), (0, 255, 0), thickness=3)
+                        cv2.line(frame, tuple(pts[1]), tuple(pts[2]), (0, 255, 0), thickness=3)
+                        cv2.line(frame, tuple(pts[2]), tuple(pts[3]), (0, 255, 0), thickness=3)
+                        cv2.line(frame, tuple(pts[3]), tuple(pts[0]), (0, 255, 0), thickness=3)
+                        
+                        # Draw distance from camera to marker center
+                        cv2.putText(frame, 
+                                f"{round(np.linalg.norm(tvecs[i][0][0]), 2)} m", 
+                                corner[0][1].astype(int), 
+                                cv2.FONT_HERSHEY_PLAIN, 3, (0, 0, 255), 2, 
+                                cv2.LINE_AA,
+                        )
                     
                 
         # If surface coordinates are found
@@ -675,7 +704,8 @@ class OCR_GUI:
 
 
 
-
+        ###################
+        # Move rest to its own function / thread
 
         # Call OCR function if Start button has been pushed
         if self.ocr_on:
@@ -733,26 +763,17 @@ class OCR_GUI:
 
         # Resize for max image size within original size while keeping surface ratio
         new_width, new_height = resize_with_ratio(self.calib_w, self.calib_h, surface_w, surface_h)
-
-
-
-        # scale = surface_h / surface_w
-
-        # if self.calib_h * scale > self.calib_w:
-        #     new_width = self.calib_w
-        #     new_height = int(self.calib_w / scale)
-        # else:
-        #     new_height = self.calib_h
-        #     new_width = int(self.calib_h * scale)
     
         return new_width, new_height
 
     def get_surface_dims_four_markers(self, tvecs, ids):
      
         indexA = np.where(ids == 1)[0][0]
-        indexB = np.where(ids == 2)[0][0]
+        # indexB = np.where(ids == 2)[0][0]
+        indexD = np.where(ids == 2)[0][0]
         indexC = np.where(ids == 3)[0][0]
-        indexD = np.where(ids == 4)[0][0]
+        # indexD = np.where(ids == 4)[0][0]
+        indexB = np.where(ids == 4)[0][0]
 
         width_AD = np.linalg.norm(tvecs[indexA]-tvecs[indexD]) - self.aruco_size
         width_BC = np.linalg.norm(tvecs[indexB]-tvecs[indexC]) - self.aruco_size
@@ -763,28 +784,12 @@ class OCR_GUI:
         surface_h = max(height_AB, height_CD)
 
         new_width, new_height = resize_with_ratio(self.calib_w, self.calib_h, surface_w, surface_h)
-
-
-        # # Resize for max image size within original size while keeping surface ratio
-        # scale = surface_h / surface_w
-
-        # if self.calib_h * scale > self.calib_w:
-        #     new_width = self.calib_w
-        #     new_height = int(self.calib_w / scale)
-        # else:
-        #     new_height = self.calib_h
-        #     new_width = int(self.calib_h * scale)
     
         return new_width, new_height
   
 
 
     # Methods for one marker method
-
-    def new_window_thread(self):
-
-        second_window_thread = threading.Thread(target=self.indicate_surface_window_init)
-        second_window_thread.start()
 
     def indicate_surface_window_init(self):
 
@@ -806,6 +811,8 @@ class OCR_GUI:
         self.height_ratio = height / resized_height
         self.indic_surf_canvas = tk.Canvas(self.indic_surface_window, width=resized_width,
                                 height=resized_height, bd=2, bg="grey")
+        
+        # print("in init: ", self.indic_surf_canvas.winfo_width(), self.indic_surf_canvas.winfo_height())
         self.indic_surf_canvas_image = self.indic_surf_canvas.create_image(0, 0, anchor=tk.NW)
         self.indic_surf_canvas.pack()
         self.indic_surf_canvas.bind("<Button-1>", self.draw_on_press)
@@ -832,66 +839,71 @@ class OCR_GUI:
         self.surface_line_eqs = []
 
         # self.update_surface_window()
-        self.update_indic_surf_canvas(resized_width, resized_height)
+
+        # self.indic_surface_window_thread()
+        print("Window update function called next from init")
+        self.update_indic_surf_canvas()
+
+    # def indic_surface_window_thread(self):
+
+    #     if self.second_window_thread is None or not self.second_window_thread.is_alive():
+    #         self.second_window_thread = threading.Thread(target=self.update_indic_surf_canvas)
+    #         self.second_window_thread.daemon = True
+    #         self.second_window_thread.start()
     
-    def update_surface_window(self):
-        self.indic_surface_window.update()
-        self.indic_surface_window.after(10, self.update_surface_window)
+    # def close_indic_surface_window(self):
+    #     if self.second_window_thread and self.second_window_thread.is_alive():
+    #         self.second_window_thread.join()  # Wait for the thread to finish
+    #     self.indic_surface_window.destroy()
+    
+    # def update_surface_window(self):
+    #     self.indic_surface_window.update()
+    #     self.indic_surface_window.after(10, self.update_surface_window)
 
-    def update_indic_surf_canvas(self, resized_width, resized_height):
+    def update_indic_surf_canvas(self):
 
-        self.indic_surface_window.update()
-        
+
+        # self.indic_surface_window.update()     
+        self.indic_surf_canvas.update()
+
         ret, frame = self.cap.read()
+
         if not ret:
             messagebox.showerror("Error", "No image could be read from the camera")
             return
-        
 
-        aruco.drawDetectedMarkers(frame, self.corners)
+        aruco_dict = cv2.aruco.getPredefinedDictionary(ARUCO_DICT[self.aruco_dropdown.get()])
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        corners, ids, rejectedImgPoints = cv2.aruco.detectMarkers(gray, aruco_dict)
+        board = aruco.CharucoBoard((self.charuco_width, self.charuco_height), self.square_size, self.aruco_size, aruco_dict)
+        aruco.refineDetectedMarkers(gray, board, corners, ids, rejectedImgPoints)
 
-        if self.retval == True:
-                frame = cv2.drawFrameAxes(frame, self.mtx, self.dist, self.rvec, self.tvec, 0.1)
+        if np.all(ids is not None):
+            charucoretval, charucoCorners, charucoIds = aruco.interpolateCornersCharuco(corners, ids, gray, board)
+            frame = aruco.drawDetectedCornersCharuco(frame, charucoCorners, charucoIds, (0,255,0))
+            retval, rvec, tvec = aruco.estimatePoseCharucoBoard(charucoCorners, charucoIds, board, self.mtx, self.dist, np.zeros((3, 1)), np.zeros((3, 1)))
 
-        if self.display_surface_on:
-            self.display_surface()
-
-        # Convert the frame to PIL Image format
-        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        resized_img = cv2.resize(frame, (resized_width, resized_height))
-
-
-
-        ## For single aruco marker, not charuco board
-        # aruco_dict = cv2.aruco.getPredefinedDictionary(ARUCO_DICT[self.aruco_dropdown.get()])
-        # gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        # corners, ids, _ = cv2.aruco.detectMarkers(gray, aruco_dict)
         # aruco.drawDetectedMarkers(frame, corners)
 
-        # # If there are markers found by detector
-        # if np.all(ids is not None):
-            
-        #     # Iterate over detected markers and estimate their pose
-        #     for id in ids:  
-        #         index = np.where(ids == id)[0][0]
-        #         if id == 1:
-        #             # Estimate pose of each marker and return the values rvec and tvec
-        #             self.rvec, self.tvec, _ = aruco.estimatePoseSingleMarkers(corners[index], self.aruco_size, self.mtx, self.dist)
-        #             (self.rvec - self.tvec).any()  # get rid of numpy value array error
-        #             cv2.drawFrameAxes(frame, self.mtx, self.dist, self.rvec, self.tvec, 0.1, 3)
+            if retval == True:
+                frame = cv2.drawFrameAxes(frame, self.mtx, self.dist, rvec, tvec, 0.1)
 
-        # if self.display_surface_on:
-        #     self.display_surface()
+                if self.display_surface_on:
+                    self.display_surface()
+        
+        # Convert the frame to PIL Image format
+        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
-        # # Convert the frame to PIL Image format
-        # frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        # resized_img = cv2.resize(frame, (resized_width, resized_height))
-
+        canvas_width = self.indic_surf_canvas.winfo_width()
+        canvas_height = self.indic_surf_canvas.winfo_height()
+        print("in function: ", canvas_width, canvas_height)
+        resized_img = cv2.resize(frame, (canvas_width, canvas_height))
 
         img = Image.fromarray(resized_img)
         self.indic_surf_canvas_imgtk = ImageTk.PhotoImage(image=img)
         self.indic_surf_canvas.itemconfig(self.indic_surf_canvas_image, image=self.indic_surf_canvas_imgtk)
-        self.indic_surf_canvas.after(30, self.update_indic_surf_canvas, resized_width, resized_height)
+        print("Window update function called next recursively")
+        self.indic_surf_canvas.after(30, self.update_indic_surf_canvas)
 
     def draw_on_press(self, event):
         
