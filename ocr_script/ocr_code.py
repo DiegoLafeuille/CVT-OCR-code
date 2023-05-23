@@ -1,9 +1,5 @@
 import csv
-import time
-import cv2
-import easyocr
 import datetime
-import numpy as np
 
 
 def process_webcam_feed(frame, reader, roi_list, cols):
@@ -28,7 +24,6 @@ def process_webcam_feed(frame, reader, roi_list, cols):
             text = reader.readtext(roi_img)
         texts.append(text[0][1] if text else "No text recognized")
 
-    suffix = 0
     # Write the extracted text to the csv file
     with open('results.csv', mode='a', newline='') as file:
         writer = csv.DictWriter(file, fieldnames=cols)
