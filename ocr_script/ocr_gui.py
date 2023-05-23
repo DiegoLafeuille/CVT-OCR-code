@@ -56,7 +56,7 @@ class OCR_GUI:
         self.left_frame.pack(side=tk.LEFT, fill='both', padx=15, pady=15)
 
         # Right frame
-        self.right_frame = tk.Frame(master, width=300)
+        self.right_frame = tk.Frame(master)
         self.right_frame.pack(side=tk.RIGHT, fill='both', padx=15, pady=15)
 
         # Creating radiobuttons to choose surface detection method
@@ -226,19 +226,27 @@ class OCR_GUI:
         self.canvas.bind("<B1-Motion>", self.on_move_press)
         self.canvas.bind("<ButtonRelease-1>", self.on_button_release)
 
-        # Rectangle variable names list
-        self.list_frame = tk.Frame(self.right_frame, width=300, height=150, highlightbackground = "grey", highlightthickness = 1)
-        self.list_frame.pack(side=tk.TOP, padx=15, pady=15, ipady=10)
-        self.list_canvas = tk.Canvas(self.list_frame)
-        self.list_canvas.pack(side=tk.LEFT, fill='both', expand=True)
-        scrollbar = ttk.Scrollbar(self.list_frame, command=self.list_canvas.yview)
-        scrollbar.pack(side = tk.RIGHT, fill = tk.Y)
+        # Scrollable container for list of rectangle variables
+        self.list_container = tk.Frame(self.right_frame, highlightbackground = "grey", highlightthickness = 1)
+        self.list_canvas = tk.Canvas(self.list_container, width=500, height=150)
+        scrollbar = ttk.Scrollbar(self.list_container, command=self.list_canvas.yview)
+        self.list_frame = tk.Frame(self.list_canvas)
+        self.list_frame.bind(
+            "<Configure>",
+            lambda e: self.list_canvas.configure(
+                scrollregion=self.list_canvas.bbox("all")
+            )
+        )
+        self.list_canvas.create_window((0, 0), window=self.list_frame, anchor="nw")
         self.list_canvas.configure(yscrollcommand=scrollbar.set)
+        self.list_container.pack(side=tk.TOP, padx=15, pady=15, ipady=10)
+        self.list_canvas.pack(side = tk.LEFT, fill = "both", expand= True)
+        scrollbar.pack(side = tk.RIGHT, fill = tk.Y)
 
         # Create labels for each column
-        ttk.Label(self.list_canvas, text="Nr.").grid(row=0, column=0, padx=15, pady=15)
-        ttk.Label(self.list_canvas, text="Variable name").grid(row=0, column=1, padx=15, pady=15)
-        ttk.Label(self.list_canvas, text="Only Numerals").grid(row=0, column=2, padx=15, pady=15)
+        ttk.Label(self.list_frame, text="Nr.").grid(row=0, column=0, padx=15, pady=15)
+        ttk.Label(self.list_frame, text="Variable name").grid(row=0, column=1, padx=15, pady=15)
+        ttk.Label(self.list_frame, text="Only Numerals").grid(row=0, column=2, padx=15, pady=15)
         self.rect_labels = []
         self.rect_entries = []
         self.only_nums_list = []
@@ -396,7 +404,6 @@ class OCR_GUI:
                 process_webcam_feed(self.rectified_frame, self.reader, roi_list, cols)
                 # print("process_webcam_feed time = ", time.time() - self.last_call_time)
 
-        
     def on_button_press(self, event):
         
         canvas_width = self.canvas.winfo_width()-9
@@ -472,21 +479,21 @@ class OCR_GUI:
         rect_var=tk.StringVar()
 
         # Creating a label for name using widget Label
-        rect_label = ttk.Label(self.list_canvas, text=str(rect_number), font=('calibre',10, 'bold'))
+        rect_label = ttk.Label(self.list_frame, text=str(rect_number), font=('calibre',10, 'bold'))
         self.rect_labels.append(rect_label)
 
         # Creating an entry for input name using widget Entry
-        rect_entry = ttk.Entry(self.list_canvas,textvariable = rect_var, font=('calibre',10,'normal'))
+        rect_entry = ttk.Entry(self.list_frame,textvariable = rect_var, font=('calibre',10,'normal'))
         self.rect_entries.append(rect_entry)
 
         # Creating a checkbox to ask if only numerals are expected as characters
         only_nums = tk.BooleanVar(value=True)
-        rect_char_checkbox = ttk.Checkbutton(self.list_canvas, variable=only_nums)
+        rect_char_checkbox = ttk.Checkbutton(self.list_frame, variable=only_nums)
         self.rect_char_checkboxs.append(rect_char_checkbox)
         self.only_nums_list.append(only_nums)
 
         # Creating delete button
-        delete_btn = ttk.Button(self.list_canvas,text = 'Delete', command=lambda: self.delete_rect(rect_number, delete_btn))
+        delete_btn = ttk.Button(self.list_frame,text = 'Delete', command=lambda: self.delete_rect(rect_number, delete_btn))
         self.rect_delete.append(delete_btn)
 
         # Placing the label and entry in the required position using grid method
