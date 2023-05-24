@@ -20,7 +20,7 @@ ap.add_argument("-H", "--height", type=int, default= 9,
 	help="Number of rows of board")
 ap.add_argument("-d", "--dictionary", type=str,
 	default="DICT_4X4_1000",
-	help="type of ArUCo tag to generate")
+	help="type of ArUCo tag")
 args = ap.parse_args()
 
 ARUCO_DICT = {
@@ -91,6 +91,8 @@ def read_chessboards(images):
             if res2[1] is not None and res2[2] is not None and len(res2[1])>3 and decimator%1==0:
                 allCorners.append(res2[1])
                 allIds.append(res2[2])
+            else:
+                print(f"Board not found for {im}")
 
         decimator+=1
 
@@ -128,7 +130,7 @@ def calibrate_camera(allCorners,allIds,imsize):
 
 
 # Get calibration pictures
-images = glob.glob(imgs_path + '/' + '*.' + 'jpg')
+images = glob.glob(imgs_path + '/' + '*.' + 'png')
 print(f"{len(images)} found")
 
 # Get resolution of pictures
@@ -138,10 +140,11 @@ print(f"Resolution: {calib_w}x{calib_h}")
 
 allCorners,allIds,imsize=read_chessboards(images)
 ret, mtx, dist, rvecs, tvecs, perViewErrors = calibrate_camera(allCorners,allIds,imsize)
-print("ret = ", ret)
+print("Average reprojection error = ", ret)
 
 for i in range(len(images)):
-    print(f"Reprojection error for image {images[i]}: {perViewErrors[i]}")
+    print(f"Reprojection error for image {i} {images[i]}: {perViewErrors[i]}")
+
 
 calibration_params = {"ret": ret, "mtx": mtx, "dist": dist, "rvecs": rvecs, "tvecs": tvecs, "calib_w": calib_w, "calib_h": calib_h}
 
