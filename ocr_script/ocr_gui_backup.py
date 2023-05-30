@@ -1,18 +1,20 @@
 import tkinter as tk
 from tkinter import ttk
 from tkinter import messagebox
+import numpy as np
 import cv2
 from cv2 import aruco
-import numpy as np
+import gxipy as gx
 from PIL import Image, ImageTk
 from ocr_code import process_webcam_feed
 import pickle
 import csv
 import easyocr
 import datetime
+import time
 from sympy import symbols, Eq
-import copy
 import threading
+import copy
 
 
 # Names of each possible ArUco tag OpenCV supports
@@ -45,8 +47,6 @@ class OCR_GUI:
     def __init__(self, master):
 
         self.ocr_on = False
-        self.ocr_count = 0
-        # self.second_window_thread = None
 
         # Main window
         self.master = master
@@ -57,19 +57,35 @@ class OCR_GUI:
         self.left_frame.pack(side=tk.LEFT, fill='both', padx=15, pady=15)
 
         # Right frame
-        self.right_frame = tk.Frame(master, width=300)
+        self.right_frame = tk.Frame(master)
         self.right_frame.pack(side=tk.RIGHT, fill='both', padx=15, pady=15)
 
-        # Creating radiobuttons to choose surface detection method
-        self.method_container = tk.Frame(self.left_frame, highlightbackground = "grey", highlightthickness = 1)
-        self.method_container.pack(side=tk.TOP)
+
+        ############################### Left frame ###############################
+        
+        # Creating radiobuttons to choose camera type and surface detection method
+        self.general_params_frame = tk.Frame(self.left_frame, highlightbackground = "grey", highlightthickness = 1)
+        self.general_params_frame.pack(side=tk.TOP)
+
+        # Camera type radio buttons
+        self.cam_type = tk.StringVar(value="daheng")
+        self.cam_type_label = ttk.Label(self.general_params_frame, text="Select type of camera:")
+        self.daheng_radio_btn = ttk.Radiobutton(self.general_params_frame, text="Daheng camera", variable=self.cam_type, value="daheng", command=self.update_cam_params)
+        self.webcam_radio_btn = ttk.Radiobutton(self.general_params_frame, text="Webcam", variable=self.cam_type, value="webcam", command=self.update_method_params)
+        self.cam_type_label.grid(row=0, column=0, padx=30, pady=(10,5))
+        self.daheng_radio_btn.grid(row=0, column=1, padx=5, pady=(10,5))
+        self.webcam_radio_btn.grid(row=0, column=2, padx=(5,30), pady=(10,5))
+        self.device_manager = gx.DeviceManager()
+        self.selected_cam_type = self.cam_type.get()
+
+        # Method radio buttons
         self.marker_method = tk.StringVar(value="one_marker")
-        self.method_label = ttk.Label(self.method_container, text="Select method to use:")
-        self.one_marker = ttk.Radiobutton(self.method_container, text="One-marker method", variable=self.marker_method, value="one_marker", command=self.show_charuco_parameters)
-        self.four_markers = ttk.Radiobutton(self.method_container, text="Four-marker method", variable=self.marker_method, value="four_markers", command=self.show_charuco_parameters)
-        self.method_label.grid(row=0, column=0, padx=30, pady=10)
-        self.one_marker.grid(row=0, column=1, padx=5, pady=10)
-        self.four_markers.grid(row=0, column=2, padx=(5,30), pady=10)
+        self.method_label = ttk.Label(self.general_params_frame, text="Select method to use:")
+        self.one_marker_radio_btn = ttk.Radiobutton(self.general_params_frame, text="One-marker method", variable=self.marker_method, value="one_marker", command=self.update_method_params)
+        self.four_markers_radio_btn = ttk.Radiobutton(self.general_params_frame, text="Four-marker method", variable=self.marker_method, value="four_markers", command=self.update_method_params)
+        self.method_label.grid(row=1, column=0, padx=30, pady=(5,10))
+        self.one_marker_radio_btn.grid(row=1, column=1, padx=5, pady=(5,10))
+        self.four_markers_radio_btn.grid(row=1, column=2, padx=(5,30), pady=(5,10))
         self.surface_line_eqs = []
 
         # Image canvas
@@ -82,48 +98,50 @@ class OCR_GUI:
         # "Indicate display surface" button for single aruco method
         self.indicate_surface_button = ttk.Button(self.left_frame, text="Indicate display surface", command=self.indicate_surface_window_init)
         self.indicate_surface_button.pack(side=tk.BOTTOM, padx=15, pady=5)
-        
 
+
+        ############################### Right frame ###############################
+        
         # Create new frame to hold the parameters grid
         self.parameters_frame = tk.Frame(self.right_frame, highlightbackground = "grey", highlightthickness = 1)
         self.parameters_frame.pack(fill=tk.X, padx=5, pady=15)
 
         # Camera input choice dropdown menu
-        self.cam_input = ttk.Label(self.parameters_frame, text="Camera input:")
+        self.cam_input = ttk.Label(self.parameters_frame, text="Camera:")
         self.cam_input.grid(row=0, column=0, padx=5, pady=(20, 5))
-        self.camera_inputs = get_available_cameras()
+        self.camera_inputs = self.get_available_cameras()
         self.camera_input_dropdown = ttk.Combobox(self.parameters_frame, value=self.camera_inputs)
         self.camera_input_dropdown.current(0)
-        self.selected_camera_input = int(self.camera_input_dropdown.get())
+        self.selected_camera_input = self.camera_input_dropdown.get()
         self.camera_input_dropdown.grid(row=0, column=1, padx=5, pady=(20, 5))
         self.camera_input_dropdown.bind("<<ComboboxSelected>>", lambda event: self.update_cam_input())
-        refresh_button = ttk.Button(self.parameters_frame, text="Refresh", command=self.get_cam_inputs)
+        refresh_button = ttk.Button(self.parameters_frame, text="Refresh", command=self.refresh_cam_inputs)
         refresh_button.grid(row=0, column=2, padx=5, pady=(20, 5))
 
         # Camera choice dropdown menu
-        self.cap = None
-        self.cam_label = ttk.Label(self.parameters_frame, text="Camera:")
+        self.cam = None
+        self.cam_label = ttk.Label(self.parameters_frame, text="Calibration folder:")
         self.cam_label.grid(row=1, column=0, padx=5, pady=5)
-        self.camera_names = ["jans_webcam_charuco", "jans_webcam", "diegos_phone", "diegos_iriun", "pc08_webcam"]
+        self.camera_names = ["daheng_6mm", "daheng_3mm", "pc08_webcam", "jans_webcam", "diegos_phone", "diegos_iriun", "jans_webcam_charuco"]
         self.camera_name_dropdown = ttk.Combobox(self.parameters_frame, value=self.camera_names)
         self.camera_name_dropdown.current(0)
         self.selected_camera = self.camera_name_dropdown.get()
         self.camera_name_dropdown.grid(row=1, column=1, padx=5, pady=5)
-        self.camera_name_dropdown.bind("<<ComboboxSelected>>", lambda event: self.update_cam())
-        self.update_cam()
+        self.camera_name_dropdown.bind("<<ComboboxSelected>>", lambda event: self.update_calibration())
+        self.update_calibration()
 
         # OCR frequence input
-        self.frequence_label = ttk.Label(self.parameters_frame, text="OCR frequence [seconds between pictures]:")
-        self.frequence_label.grid(row=2, column=0, padx=5, pady=5)
-        self.frequence_entry = ttk.Entry(self.parameters_frame)
-        self.frequence = 1
-        self.frequence_entry.insert(-1, "1")
-        self.frequence_entry.bind("<Return>", lambda event: on_frequence_entry())
-        self.frequence_entry.grid(row=2, column=1, padx=5, pady=5)
+        self.frequency_label = ttk.Label(self.parameters_frame, text="OCR frequency [ms between pictures]:")
+        self.frequency_label.grid(row=2, column=0, padx=5, pady=5)
+        self.frequency_entry = ttk.Entry(self.parameters_frame)
+        self.frequency = 500
+        self.frequency_entry.insert(-1, "500")
+        self.frequency_entry.bind("<Return>", lambda event: on_frequency_entry())
+        self.frequency_entry.grid(row=2, column=1, padx=5, pady=5)
 
-        def on_frequence_entry():
+        def on_frequency_entry():
             try:
-                self.frequence = float(self.frequence_entry.get())
+                self.frequency = int(self.frequency_entry.get())
             except ValueError:
                 messagebox.showerror("Error", "Number of seconds between pictures must be integer.")
 
@@ -152,7 +170,7 @@ class OCR_GUI:
 
 
 
-        # Additional parameters for charuco board
+        ######################## Charuco board parameters ########################
 
         # Square size input
         self.square_size_label = ttk.Label(self.parameters_frame, text="Board square size [meters]:")
@@ -199,19 +217,7 @@ class OCR_GUI:
         
         
         # Video feed
-        self.cap = cv2.VideoCapture(self.selected_camera_input)
-        self.cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
-        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.calib_w)
-        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.calib_h)
-        # self.update_master()
-        
-        # Resize the original image
-        width = self.cap.get(cv2.CAP_PROP_FRAME_WIDTH)
-        height = self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
-        scale = min(1, 300 / height)
-        self.resize_width = int(width * scale)
-        self.resize_height = int(height * scale)
-        self.video_label = tk.Label(self.right_frame, width=self.resize_width, height=self.resize_height)
+        self.video_label = tk.Label(self.right_frame)
         self.video_label.pack()
         self.show_camera()
         
@@ -228,9 +234,23 @@ class OCR_GUI:
         self.canvas.bind("<B1-Motion>", self.on_move_press)
         self.canvas.bind("<ButtonRelease-1>", self.on_button_release)
 
-        # Rectangle variable names list
-        self.list_frame = tk.Frame(self.right_frame, width=300, height=150, highlightbackground = "grey", highlightthickness = 1)
-        self.list_frame.pack(side=tk.TOP, fill='both', expand=True, padx=15, pady=15, ipady=10)
+        # Scrollable container for list of rectangle variables
+        self.list_container = tk.Frame(self.right_frame, highlightbackground = "grey", highlightthickness = 1)
+        self.list_canvas = tk.Canvas(self.list_container, width=500, height=150)
+        scrollbar = ttk.Scrollbar(self.list_container, command=self.list_canvas.yview)
+        self.list_frame = tk.Frame(self.list_canvas)
+        self.list_frame.bind(
+            "<Configure>",
+            lambda e: self.list_canvas.configure(
+                scrollregion=self.list_canvas.bbox("all")
+            )
+        )
+        self.list_canvas.create_window((0, 0), window=self.list_frame, anchor="nw")
+        self.list_canvas.configure(yscrollcommand=scrollbar.set)
+        self.list_container.pack(side=tk.TOP, padx=15, pady=15, ipady=10)
+        self.list_canvas.pack(side = tk.LEFT, fill = "both", expand= True)
+        scrollbar.pack(side = tk.RIGHT, fill = tk.Y)
+
         # Create labels for each column
         ttk.Label(self.list_frame, text="Nr.").grid(row=0, column=0, padx=15, pady=15)
         ttk.Label(self.list_frame, text="Variable name").grid(row=0, column=1, padx=15, pady=15)
@@ -246,43 +266,130 @@ class OCR_GUI:
         self.start_button.pack(side=tk.BOTTOM, anchor='s', padx=25, pady=15)
         self.results = []
 
+        self.master.update()
+
+
+    def get_available_cameras(self):
+
+        cam_type = self.cam_type.get()
+        available_cameras = []
+
+        if cam_type == 'daheng':
+            dev_num, dev_info_list = self.device_manager.update_device_list()
+            if dev_num == 0:
+                print("Number of enumerated devices is 0")
+                raise Exception("NoCameraFound")
+            for cam in dev_info_list:
+                # print(cam['sn'])
+                available_cameras.append(cam['sn'])
+
+        else:
+            index = 0
+            cap = cv2.VideoCapture(index, cv2.CAP_DSHOW)
+            while cap.isOpened():
+                available_cameras.append(index)
+                cap.release()
+                index += 1
+                cap = cv2.VideoCapture(index, cv2.CAP_DSHOW)
+
+        return available_cameras
 
     def update_cam_input(self):
         
-        print(f"Changing camera to input {int(self.camera_input_dropdown.get())}")
+        print(f"Changing camera to input {self.camera_input_dropdown.get()}")
 
-        try :
-            if self.cap is not None:
-                self.cap.release()
-            self.cap = cv2.VideoCapture(int(self.camera_input_dropdown.get()))
-            self.cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
-            self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.calib_w)
-            self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.calib_h)
-            ret,frame = self.cap.read()
-            if not ret:
-                raise Exception("FrameNotRead")
-            width = self.cap.get(cv2.CAP_PROP_FRAME_WIDTH)
-            height = self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
-            self.selected_camera_input = int(self.camera_input_dropdown.get())
+        cam_type = self.cam_type.get()
 
-            if self.calib_w != int(width) or self.calib_h != int(height):
-                messagebox.showwarning("Warning", "Target and actual resolutions differ.\n"
-                                     + "Make sure camera input and camera name correspond.\n"
-                                     + f"Target resolution = {self.calib_w}x{self.calib_h}\n"
-                                     + f"Actual resolution = {int(width)}x{int(height)}")
+        if cam_type == 'daheng':
+            
+            try:
+                if self.cam is not None:
+                    self.cam.stream_off()
+                    self.cam.close_device()
+                self.cam = self.device_manager.open_device_by_sn(self.camera_input_dropdown.get())
+                
+                self.cam.TriggerMode.set(gx.GxSwitchEntry.OFF)
+                self.cam.ExposureTime.set(100000.0)
+                self.cam.Gain.set(10.0)
 
-        except Exception as e:
-            if str(e) == "FrameNotRead":
-                messagebox.showerror("Error", "Unable to retrieve video feed from this camera.\n"
-                                     + "Please check the connection and make sure the camera is not being used by another application.")
-            else:
-                messagebox.showerror("Error", "An error occurred while trying to retrieve video feed from this camera.")
-                raise e
-            self.camera_input_dropdown.current(self.selected_camera_input)
-            self.update_cam_input()
+                # get param of improving image quality
+                if self.cam.GammaParam.is_readable():
+                    gamma_value = self.cam.GammaParam.get()
+                    self.gamma_lut = gx.Utility.get_gamma_lut(gamma_value)
+                else:
+                    self.gamma_lut = None
+                if self.cam.ContrastParam.is_readable():
+                    contrast_value = self.cam.ContrastParam.get()
+                    self.contrast_lut = gx.Utility.get_contrast_lut(contrast_value)
+                else:
+                    self.contrast_lut = None
+                if self.cam.ColorCorrectionParam.is_readable():
+                    self.color_correction_param = self.cam.ColorCorrectionParam.get()
+                else:
+                    self.color_correction_param = 0
 
-    def update_cam(self):
-        print(f"Updating camera: {self.camera_name_dropdown.get()}")
+                self.cam.data_stream[0].set_acquisition_buffer_number(1)
+                self.cam.stream_on()
+
+                raw_image = self.cam.data_stream[0].get_image()
+                if raw_image is None:
+                    raise Exception("FrameNotRead")
+                
+                numpy_image = raw_image.get_numpy_array()
+                
+                self.selected_camera_input = self.camera_input_dropdown.get()
+                
+                height, width = numpy_image.shape
+                if self.calib_w != width or self.calib_h != height:
+                    messagebox.showwarning("Warning", "Target and actual resolutions differ.\n"
+                                        + "Make sure camera input and camera name correspond.\n"
+                                        + f"Target resolution = {self.calib_w}x{self.calib_h}\n"
+                                        + f"Actual resolution = {width}x{height}")
+                    
+            except Exception as e:
+                if str(e) == "FrameNotRead":
+                    messagebox.showerror("Error", "Unable to retrieve video feed from this camera.\n"
+                                        + "Please check the connection and make sure the camera is not being used by another application.")
+                else:
+                    messagebox.showerror("Error", "An error occurred while trying to retrieve video feed from this camera.")
+                    # raise e
+                self.camera_input_dropdown.current(self.selected_camera_input)
+                self.update_cam_input()
+            
+        else:
+
+            try :
+                if self.cam is not None:
+                    self.cam.release()
+                self.cam = cv2.VideoCapture(int(self.camera_input_dropdown.get()))
+                self.cam.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
+                self.cam.set(cv2.CAP_PROP_FRAME_WIDTH, self.calib_w)
+                self.cam.set(cv2.CAP_PROP_FRAME_HEIGHT, self.calib_h)
+                ret,frame = self.get_frame()
+                if not ret:
+                    raise Exception("FrameNotRead")
+                width = self.cam.get(cv2.CAP_PROP_FRAME_WIDTH)
+                height = self.cam.get(cv2.CAP_PROP_FRAME_HEIGHT)
+                self.selected_camera_input = int(self.camera_input_dropdown.get())
+
+                if self.calib_w != int(width) or self.calib_h != int(height):
+                    messagebox.showwarning("Warning", "Target and actual resolutions differ.\n"
+                                        + "Make sure camera input and camera name correspond.\n"
+                                        + f"Target resolution = {self.calib_w}x{self.calib_h}\n"
+                                        + f"Actual resolution = {int(width)}x{int(height)}")
+
+            except Exception as e:
+                if str(e) == "FrameNotRead":
+                    messagebox.showerror("Error", "Unable to retrieve video feed from this camera.\n"
+                                        + "Please check the connection and make sure the camera is not being used by another application.")
+                else:
+                    messagebox.showerror("Error", "An error occurred while trying to retrieve video feed from this camera.")
+                    raise e
+                self.camera_input_dropdown.current(self.selected_camera_input)
+                self.update_cam_input()
+
+    def update_calibration(self):
+        print(f"Updating calibration to {self.camera_name_dropdown.get()}")
         # Path to pickle file
         calib_file_path = "cam_calibration/cameras/" + self.camera_name_dropdown.get() + "/calibration_params.pickle"
 
@@ -301,11 +408,30 @@ class OCR_GUI:
         
         self.update_cam_input()
 
-    def get_cam_inputs(self):
-        self.camera_inputs = get_available_cameras()
+    def refresh_cam_inputs(self):
+        self.camera_inputs = self.get_available_cameras()
         self.camera_input_dropdown['values'] = self.camera_inputs
 
-    def show_charuco_parameters(self):
+    def update_cam_params(self):
+
+        if self.selected_cam_type == "daheng":
+            self.cam.stream_off()
+            self.cam.close_device()
+        else:
+            self.cam.release()
+
+        try:
+            self.cam = None
+            self.refresh_cam_inputs()
+            self.update_cam_input()
+            self.update_calibration()
+            self.selected_cam_type = self.cam_type.get()
+        except Exception as e:
+            print("Exception handling")
+            self.cam_type.set(self.selected_cam_type)
+            raise e
+
+    def update_method_params(self):
         method = self.marker_method.get()
         if method == "one_marker":
             self.indicate_surface_button.pack(side=tk.BOTTOM, padx=15, pady=5)
@@ -325,36 +451,117 @@ class OCR_GUI:
             self.charuco_size_label.grid_remove()
             self.charuco_width_entry.grid_remove()
             self.charuco_height_entry.grid_remove()
-
-    def update_master(self):
-        # self.ret, self.cam_frame = self.cap.read()
-        self.master.update()
-        self.master.after(10, self.update_master)
         
+    def get_frame(self):
+
+        cam_type = self.cam_type.get()
+
+        if cam_type == 'daheng':
+            ret = True
+            raw_image = self.cam.data_stream[0].get_image()
+            rgb_image = raw_image.convert("RGB")
+            rgb_image.image_improvement(self.color_correction_param, self.contrast_lut, self.gamma_lut)
+            frame = rgb_image.get_numpy_array()
+            frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR) 
+            if frame is None:
+                ret = False
+
+        else:
+            ret, frame = self.cam.read()
+        
+        return ret, frame
+
     def toggle_ocr(self):
+        print('Hello 1')
 
         # Start OCR
         if not self.ocr_on:
+            print('Hello 2')
             vars = [var.get() for var in self.rect_entries if var is not None]
+            print('Hello 3')
+            print(vars)
             # Verify that all entries have variable names which are different and not empty
             if len(set(vars)) != len(vars) or not all(vars):
                 messagebox.showerror("Error", "All variables need names, and they need to be different.")
             else:
-                self.reader = easyocr.Reader(['en'], gpu=False)
                 self.ocr_on = True
                 self.start_button.config(text="Stop OCR")
                 self.canvas.unbind("<ButtonPress-1>")
                 self.canvas.unbind("<B1-Motion>")
                 self.canvas.unbind("<ButtonRelease-1>")
-        
+
+                self.ocr_thread = threading.Thread(target=self.do_ocr, daemon=True)
+                self.ocr_thread.start()
+
         # Stop OCR
         else:
             self.ocr_on = False
+            self.ocr_thread.join()
             self.start_button.config(text="Start OCR")
-            self.ocr_count = 0
             self.canvas.bind("<ButtonPress-1>", self.on_button_press)
             self.canvas.bind("<B1-Motion>", self.on_move_press)
             self.canvas.bind("<ButtonRelease-1>", self.on_button_release)       
+
+    def do_ocr(self):
+
+        self.reader = easyocr.Reader(['en'], gpu=False)
+        self.last_call_time = time.time()
+        roi_list = self.create_rois()
+    
+        # Create column names
+        cols = ['Timestamp'] + [roi['variable'] for roi in roi_list]
+
+        # Create the csv file and write the headers
+        with open('results.csv', mode='w', newline='') as file:
+                writer = csv.DictWriter(file, fieldnames=cols)
+                writer.writeheader()
+        
+        while self.ocr_on:
+
+            frame = copy.copy(self.rectified_frame)
+
+            # Calculations to compensate for OCR execution time in frequency  
+            elapsed_time = time.time() - self.last_call_time
+            next_call_time = self.frequency/1000 - elapsed_time
+            if next_call_time > 0:
+                time.sleep(next_call_time)
+        
+            # Indicate in OCR's result file if not all necessary markers have been detected
+            if frame is None:
+                self.last_call_time = time.time()
+                timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
+                with open('results.csv', mode='a', newline='') as file:
+                    file.write(f"{timestamp},Not enough Aruco markers detected\n")
+            
+            # Call OCR function if all necessary markers have been detected 
+            else:
+                self.last_call_time = time.time()
+                process_webcam_feed(self.rectified_frame, self.reader, roi_list, cols)
+                # print("process_webcam_feed time = ", time.time() - self.last_call_time)
+
+    def create_rois(self):
+
+        # Create list of ROIs
+        rois = []
+        # Adjust ROI coordinates from canvas size to frame size
+        for rectangle in self.rectangles:
+            if rectangle is None:
+                rois.append(None)
+                continue
+            adjusted_x1 = int(rectangle[0] * self.new_width / self.new_canvas_width)
+            adjusted_y1 = int(rectangle[1] * self.new_height / self.new_canvas_height)
+            adjusted_x2 = int(rectangle[2] * self.new_width / self.new_canvas_width)
+            adjusted_y2 = int(rectangle[3] * self.new_height / self.new_canvas_height)
+            roi = (adjusted_x1, adjusted_y1, adjusted_x2, adjusted_y2)
+            rois.append(roi)
+        
+        print([f"0: {var}, {roi}, {only_nums}" for var, roi, only_nums in zip(self.rect_entries, rois, self.only_nums_list) if roi is not None])
+        print([f"1: {var.get()}, {roi}, {only_nums}" for var, roi, only_nums in zip(self.rect_entries, rois, self.only_nums_list) if roi is not None])
+        print([f"2: {var}, {roi}, {only_nums.get()}" for var, roi, only_nums in zip(self.rect_entries, rois, self.only_nums_list) if roi is not None])
+        print([f"3: {var.get()}, {roi}, {only_nums.get()}" for var, roi, only_nums in zip(self.rect_entries, rois, self.only_nums_list) if roi is not None])
+        
+        roi_list = [{'variable': var.get(), 'ROI': roi, 'only_nums': only_nums.get()} for var, roi, only_nums in zip(self.rect_entries, rois, self.only_nums_list) if roi is not None]
+        return roi_list
 
     def on_button_press(self, event):
         
@@ -427,9 +634,6 @@ class OCR_GUI:
         label.place(x=label_x, y=label_y, anchor='center')
         self.rect_drawing_labels.append(label)
 
-        # For a scrollable frame for the Label-Entry-Button list, check out:
-        # https://blog.teclado.com/tkinter-scrollable-frames/
-
         # Declaring string variable for storing variable name
         rect_var=tk.StringVar()
 
@@ -476,30 +680,22 @@ class OCR_GUI:
 
         self.master.update()
 
+        ret, frame = self.get_frame()
+        if not ret:
+            self.video_label.after(50, self.show_camera)
+            return
+
         # Get the width and height of the actual image
-        width = self.cap.get(cv2.CAP_PROP_FRAME_WIDTH)
-        height = self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
+        height, width = frame.shape[:2]
         
         # Calculate the scale factor to keep the aspect ratio and limit the height to 300
-        scale = min(1, 300 / height)
+        scale = min(1, 200 / height)
         
         # Resize the original image
         self.resize_width = int(width * scale)
         self.resize_height = int(height * scale)
             
         aruco_dict = cv2.aruco.getPredefinedDictionary(ARUCO_DICT[self.aruco_dropdown.get()])
-
-        # # Get the latest frame and convert into Image
-        # if not self.ret:
-        #     self.video_label.after(30, self.show_camera)
-        #     return
-
-        # frame = copy.copy(self.cam_frame)
-
-        ret, frame = self.cap.read()
-        if not ret:
-            self.video_label.after(30, self.show_camera)
-            return
 
 
         corners, ids, _ = cv2.aruco.detectMarkers(frame, aruco_dict)
@@ -510,13 +706,13 @@ class OCR_GUI:
                 # get marker corners
                 pts = np.int32(corners[i][0])
                 # draw lines between corners
-                cv2.line(frame, tuple(pts[0]), tuple(pts[1]), (0, 255, 0), thickness=3)
-                cv2.line(frame, tuple(pts[1]), tuple(pts[2]), (0, 255, 0), thickness=3)
-                cv2.line(frame, tuple(pts[2]), tuple(pts[3]), (0, 255, 0), thickness=3)
-                cv2.line(frame, tuple(pts[3]), tuple(pts[0]), (0, 255, 0), thickness=3)
+                cv2.line(frame, tuple(pts[0]), tuple(pts[1]), (0, 255, 0), thickness=8)
+                cv2.line(frame, tuple(pts[1]), tuple(pts[2]), (0, 255, 0), thickness=8)
+                cv2.line(frame, tuple(pts[2]), tuple(pts[3]), (0, 255, 0), thickness=8)
+                cv2.line(frame, tuple(pts[3]), tuple(pts[0]), (0, 255, 0), thickness=8)
 
         cv2image= cv2.cvtColor(frame,cv2.COLOR_BGR2RGB)
-        cv2image_resized = cv2.resize(cv2image, (self.resize_width, self.resize_height))
+        cv2image_resized = cv2.resize(cv2image, (self.resize_width, self.resize_height), interpolation=cv2.INTER_AREA)
         
         img = Image.fromarray(cv2image_resized)
         # Convert image to PhotoImage
@@ -525,32 +721,35 @@ class OCR_GUI:
         self.video_label.configure(image=imgtk)
         
         # Repeat after an interval to capture continuously
-        self.video_label.after(30, self.show_camera)
+        self.video_label.after(50, self.show_camera)
  
     def show_rectified_camera(self):
                 
-        # if self.second_window_thread is not None:
-        #     print(self.second_window_thread.is_alive())
-
-        ret, frame = self.cap.read()
+        ret, frame = self.get_frame()
         if not ret:
-            self.canvas.after(30, self.show_rectified_camera)
+            self.canvas.after(50, self.show_rectified_camera)
             return
+        # print(frame.shape)
         
         
         # Get video feed resolution
-        width  = self.cap.get(cv2.CAP_PROP_FRAME_WIDTH)
-        height = self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
+        height, width = frame.shape[:2]
 
         # Calculate canvas dimensions while keeping original ratio
         scale = min(self.canvas_max_width / width, self.canvas_max_height / height)
         self.new_canvas_width = int(width*scale)
         self.new_canvas_height = int(height*scale)
+
+        # # Undistort image
+        # newcameramtx, roi = cv2.getOptimalNewCameraMatrix(self.mtx, self.dist, (width,height), 1, (width,height))
+        # frame = cv2.undistort(frame, self.mtx, self.dist, None, newcameramtx)
+        # x, y, width, height = roi
+        # frame = frame[y:y+height, x:x+width]
         
         # Detect markers in the frame
         aruco_dict = cv2.aruco.getPredefinedDictionary(ARUCO_DICT[self.aruco_dropdown.get()])
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        corners, ids, rejectedImgPoints = cv2.aruco.detectMarkers(gray, aruco_dict)
+        corners, self.ids, rejectedImgPoints = cv2.aruco.detectMarkers(gray, aruco_dict)
 
         warp_input_pts = []
 
@@ -560,18 +759,18 @@ class OCR_GUI:
         if method == "one_marker":
 
             board = aruco.CharucoBoard((self.charuco_width, self.charuco_height), self.square_size, self.aruco_size, aruco_dict)
-            aruco.refineDetectedMarkers(gray, board, corners, ids, rejectedImgPoints)
+            aruco.refineDetectedMarkers(gray, board, corners, self.ids, rejectedImgPoints)
             
             # If there are markers found by detector
-            if np.all(ids is not None):
+            if np.all(self.ids is not None):
                 
-                charucoretval, charucoCorners, charucoIds = aruco.interpolateCornersCharuco(corners, ids, gray, board)
+                charucoretval, charucoCorners, charucoIds = aruco.interpolateCornersCharuco(corners, self.ids, gray, board)
                 frame = aruco.drawDetectedCornersCharuco(frame, charucoCorners, charucoIds, (0,255,0))
                 retval, rvec, tvec = aruco.estimatePoseCharucoBoard(charucoCorners, charucoIds, board, self.mtx, self.dist, np.zeros((3, 1)), np.zeros((3, 1)))
                 
                 if retval and self.saved_surfaces_counter >= 2:
 
-                    self.surface_img_coords = [self.find_img_coords(point_coords) for point_coords in self.surface_world_coords]
+                    self.surface_img_coords = [self.find_img_coords(point_coords, rvec, tvec) for point_coords in self.surface_world_coords]
 
                     #  Updating detected dimensions of object every 50 consecutive frames where surface is found
                     if self.frame_counter % 50 == 0:
@@ -597,41 +796,41 @@ class OCR_GUI:
         # Warp with four markers method
         elif method == "four_markers":
 
-            if np.all(ids is not None):
+            if np.all(self.ids is not None):
         
                 tvecs = []
                 rvecs = []
             
-                for id in ids:  
-                    index = np.where(ids == id)[0][0]
+                for id in self.ids:  
+                    index = np.where(self.ids == id)[0][0]
                     
                     # Estimate pose of each marker and return the values rvec and tvec
                     rvec, tvec, _ = aruco.estimatePoseSingleMarkers(corners[index], self.aruco_size, self.mtx, self.dist)
                     tvecs.append(tvec)
                     rvecs.append(rvec)
         
-                if all(id in ids for id in [1,2,3,4]):
+                if all(id in self.ids for id in [1,2,3,4]):
                 
                     roi_corners = {}
 
-                    for id in ids:  
-                        index = np.where(ids == id)[0][0]
+                    for id in self.ids:  
+                        index = np.where(self.ids == id)[0][0]
                         if id == 1:
                             roi_corners["A"] = [int(corners[index][0][2][0]), int(corners[index][0][2][1])] # Bottom right corner of ID 1
                         if id == 2:
-                            # roi_corners["B"] = [int(corners[index][0][1][0]), int(corners[index][0][1][1])] # Top right corner of ID 2
-                            roi_corners["D"] = [int(corners[index][0][3][0]), int(corners[index][0][3][1])] # Bottom left corner of ID 2
+                            roi_corners["B"] = [int(corners[index][0][1][0]), int(corners[index][0][1][1])] # Top right corner of ID 2
+                            # roi_corners["D"] = [int(corners[index][0][3][0]), int(corners[index][0][3][1])] # Bottom left corner of ID 2
                         if id == 3:
                             roi_corners["C"] = [int(corners[index][0][0][0]), int(corners[index][0][0][1])] # Top left corner of ID 3
                         if id == 4:
-                            # roi_corners["D"] = [int(corners[index][0][3][0]), int(corners[index][0][3][1])] # Bottom left corner of ID 4
-                            roi_corners["B"] = [int(corners[index][0][1][0]), int(corners[index][0][1][1])] # Top right corner of ID 4
+                            roi_corners["D"] = [int(corners[index][0][3][0]), int(corners[index][0][3][1])] # Bottom left corner of ID 4
+                            # roi_corners["B"] = [int(corners[index][0][1][0]), int(corners[index][0][1][1])] # Top right corner of ID 4
                     
                     warp_input_pts = np.float32([roi_corners["A"], roi_corners["B"], roi_corners["C"], roi_corners["D"]])
 
                     #  Updating detected dimensions of object every 50 consecutive frames where surface is found
                     if self.frame_counter % 50 == 0:
-                        self.new_width, self.new_height = self.get_surface_dims_four_markers(tvecs, ids)
+                        self.new_width, self.new_height = self.get_surface_dims_four_markers(tvecs, self.ids)
                     self.frame_counter += 1
                 
                 else:
@@ -669,14 +868,9 @@ class OCR_GUI:
                                     [self.new_width - 1, self.new_height - 1],
                                     [self.new_width - 1, 0]])
 
-            # print(warp_input_pts.shape)
-            # print(warp_input_pts)
-            # print(warp_output_pts.shape)
-            # print(warp_output_pts)
-
             M = cv2.getPerspectiveTransform(warp_input_pts,warp_output_pts)
 
-            frame = cv2.warpPerspective(frame,M,(self.new_width, self.new_height),flags=cv2.INTER_LINEAR)
+            self.rectified_frame = cv2.warpPerspective(frame,M,(self.new_width, self.new_height),flags=cv2.INTER_CUBIC)
             # frame_height, frame_width = frame.shape[:2]
 
             # Calculate new image dimensions while keeping original ratio
@@ -684,9 +878,13 @@ class OCR_GUI:
             self.new_canvas_width = int(self.new_width*scale)
             self.new_canvas_height = int(self.new_height*scale)
 
-
-        # Convert to RGB format
-        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            # Convert to RGB format
+            self.rectified_frame = cv2.cvtColor(self.rectified_frame, cv2.COLOR_BGR2RGB)
+            frame = self.rectified_frame
+        
+        else:
+            self.rectified_frame = None
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
         # Resize image with new dimensions
         resized_frame = cv2.resize(frame, (self.new_canvas_width, self.new_canvas_height), interpolation=cv2.INTER_AREA)
@@ -698,57 +896,9 @@ class OCR_GUI:
         image = Image.fromarray(resized_frame)
         self.photo = ImageTk.PhotoImage(image)
         self.canvas.itemconfig(self.canvas_image, image=self.photo)
-        # Adjust the scroll region to the image size
-        self.canvas.config(scrollregion=self.canvas.bbox(self.canvas_image)) 
-
-
-
-
-        ###################
-        # Move rest to its own function / thread
-
-        # Call OCR function if Start button has been pushed
-        if self.ocr_on:
-
-            # Create list of ROIs
-            rois = []
-            # Adjust ROI coordinates from canvas size to frame size
-            for rectangle in self.rectangles:
-                if rectangle is None:
-                    rois.append(None)
-                    continue
-                adjusted_x1 = int(rectangle[0] * self.new_width / self.new_canvas_width)
-                adjusted_y1 = int(rectangle[1] * self.new_height / self.new_canvas_height)
-                adjusted_x2 = int(rectangle[2] * self.new_width / self.new_canvas_width)
-                adjusted_y2 = int(rectangle[3] * self.new_height / self.new_canvas_height)
-                roi = (adjusted_x1, adjusted_y1, adjusted_x2, adjusted_y2)
-                rois.append(roi)
-            
-            roi_list = [{'variable': var.get(), 'ROI': roi, 'only_nums': only_nums.get()} for var, roi, only_nums in zip(self.rect_entries, rois, self.only_nums_list) if roi is not None]
-            
-            # Create column names
-            cols = ['Timestamp'] + [roi['variable'] for roi in roi_list]
-            
-            # Create the csv file and write the headers if start button has just been pushed
-            if self.ocr_count == 0:
-                with open('results.csv', mode='w', newline='') as file:
-                    writer = csv.DictWriter(file, fieldnames=cols)
-                    writer.writeheader()
-            
-            # Indicate in OCR's result file if not all necessary markers have been detected
-            if ids is not None and not all(id in ids for id in [1,2,3,4]) or ids is None:
-                timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
-                with open('results.csv', mode='a', newline='') as file:
-                    file.write(f"{timestamp},Not enough Aruco markers detected\n")
-            
-            # Call OCR function if all necessary markers have been detected 
-            else:
-                process_webcam_feed(frame, self.reader, roi_list, cols)
-            
-            self.ocr_count +=1
 
         # Repeat after an interval to capture continuously
-        self.canvas.after(30, self.show_rectified_camera)
+        self.canvas.after(50, self.show_rectified_camera)
 
     def get_surface_dims_one_marker(self):
 
@@ -769,11 +919,11 @@ class OCR_GUI:
     def get_surface_dims_four_markers(self, tvecs, ids):
      
         indexA = np.where(ids == 1)[0][0]
-        # indexB = np.where(ids == 2)[0][0]
-        indexD = np.where(ids == 2)[0][0]
+        indexB = np.where(ids == 2)[0][0]
+        # indexD = np.where(ids == 2)[0][0]
         indexC = np.where(ids == 3)[0][0]
-        # indexD = np.where(ids == 4)[0][0]
-        indexB = np.where(ids == 4)[0][0]
+        indexD = np.where(ids == 4)[0][0]
+        # indexB = np.where(ids == 4)[0][0]
 
         width_AD = np.linalg.norm(tvecs[indexA]-tvecs[indexD]) - self.aruco_size
         width_BC = np.linalg.norm(tvecs[indexB]-tvecs[indexC]) - self.aruco_size
@@ -789,7 +939,7 @@ class OCR_GUI:
   
 
 
-    # Methods for one marker method
+    #################### Methods for one marker method ####################
 
     def indicate_surface_window_init(self):
 
@@ -802,14 +952,16 @@ class OCR_GUI:
         self.saved_coords_label.pack()
 
         # Create canvas to display video feed
+        _, frame = self.get_frame()
+        height, width = frame.shape[:2]
         max_width = 1280
         max_height = 720
-        width = self.cap.get(cv2.CAP_PROP_FRAME_WIDTH)
-        height = self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
+        # width = self.cam.get(cv2.CAP_PROP_FRAME_WIDTH)
+        # height = self.cam.get(cv2.CAP_PROP_FRAME_HEIGHT)
         resized_width, resized_height = resize_with_ratio(max_width, max_height, width, height)
         self.width_ratio = width / resized_width
         self.height_ratio = height / resized_height
-        self.indic_surf_canvas = tk.Canvas(self.indic_surface_window, width=resized_width,
+        self.indic_surf_canvas = tk.Canvas(self.indic_surface_window, width=max_height,
                                 height=resized_height, bd=2, bg="grey")
         
         # print("in init: ", self.indic_surf_canvas.winfo_width(), self.indic_surf_canvas.winfo_height())
@@ -838,55 +990,39 @@ class OCR_GUI:
         self.surface_world_coords = []
         self.surface_line_eqs = []
 
-        # self.update_surface_window()
-
-        # self.indic_surface_window_thread()
-        print("Window update function called next from init")
         self.update_indic_surf_canvas()
-
-    # def indic_surface_window_thread(self):
-
-    #     if self.second_window_thread is None or not self.second_window_thread.is_alive():
-    #         self.second_window_thread = threading.Thread(target=self.update_indic_surf_canvas)
-    #         self.second_window_thread.daemon = True
-    #         self.second_window_thread.start()
-    
-    # def close_indic_surface_window(self):
-    #     if self.second_window_thread and self.second_window_thread.is_alive():
-    #         self.second_window_thread.join()  # Wait for the thread to finish
-    #     self.indic_surface_window.destroy()
-    
-    # def update_surface_window(self):
-    #     self.indic_surface_window.update()
-    #     self.indic_surface_window.after(10, self.update_surface_window)
 
     def update_indic_surf_canvas(self):
 
+        self.indic_surface_window.update()
 
-        # self.indic_surface_window.update()     
-        # self.indic_surf_canvas.update()
-
-        ret, frame = self.cap.read()
+        ret, frame = self.get_frame()
 
         if not ret:
             messagebox.showerror("Error", "No image could be read from the camera")
             return
+        
+        # # Undistort image
+        # h,  w = frame.shape[:2]
+        # newcameramtx, roi = cv2.getOptimalNewCameraMatrix(self.mtx, self.dist, (w,h), 1, (w,h))
+        # frame = cv2.undistort(frame, self.mtx, self.dist, None, newcameramtx)
+        # x, y, w, h = roi
+        # frame = frame[y:y+h, x:x+w]
 
         aruco_dict = cv2.aruco.getPredefinedDictionary(ARUCO_DICT[self.aruco_dropdown.get()])
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         corners, ids, rejectedImgPoints = cv2.aruco.detectMarkers(gray, aruco_dict)
+
         board = aruco.CharucoBoard((self.charuco_width, self.charuco_height), self.square_size, self.aruco_size, aruco_dict)
         aruco.refineDetectedMarkers(gray, board, corners, ids, rejectedImgPoints)
 
         if np.all(ids is not None):
             charucoretval, charucoCorners, charucoIds = aruco.interpolateCornersCharuco(corners, ids, gray, board)
             frame = aruco.drawDetectedCornersCharuco(frame, charucoCorners, charucoIds, (0,255,0))
-            retval, rvec, tvec = aruco.estimatePoseCharucoBoard(charucoCorners, charucoIds, board, self.mtx, self.dist, np.zeros((3, 1)), np.zeros((3, 1)))
+            self.retval, self.rvec, self.tvec = aruco.estimatePoseCharucoBoard(charucoCorners, charucoIds, board, self.mtx, self.dist, np.zeros((3, 1)), np.zeros((3, 1)))
 
-        # aruco.drawDetectedMarkers(frame, corners)
-
-            if retval == True:
-                frame = cv2.drawFrameAxes(frame, self.mtx, self.dist, rvec, tvec, 0.1)
+            if self.retval == True:
+                frame = cv2.drawFrameAxes(frame, self.mtx, self.dist, self.rvec, self.tvec, 0.1)
 
                 if self.display_surface_on:
                     self.display_surface()
@@ -894,23 +1030,25 @@ class OCR_GUI:
         # Convert the frame to PIL Image format
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
-        canvas_width = self.indic_surf_canvas.winfo_width()
-        canvas_height = self.indic_surf_canvas.winfo_height()
-        # print("Size in function: ", canvas_width, canvas_height)
-        resized_img = cv2.resize(frame, (canvas_width, canvas_height))
+        # Undistort image
+        height,  width = frame.shape[:2]
+        newcameramtx, roi = cv2.getOptimalNewCameraMatrix(self.mtx, self.dist, (width,height), 1, (width,height))
+        frame = cv2.undistort(frame, self.mtx, self.dist, None, newcameramtx)
+        x, y, width, height = roi
+        frame = frame[y:y+height, x:x+width]
+
+        max_width = 1280
+        max_height = 720
+        resized_width, resized_height = resize_with_ratio(max_width, max_height, width, height)
+        resized_img = cv2.resize(frame, (resized_width, resized_height), interpolation= cv2.INTER_AREA)
 
         img = Image.fromarray(resized_img)
         self.indic_surf_canvas_imgtk = ImageTk.PhotoImage(image=img)
         self.indic_surf_canvas.itemconfig(self.indic_surf_canvas_image, image=self.indic_surf_canvas_imgtk)
-        print("Window update function called next recursively")
-
-        print(self.indic_surface_window.winfo_exists())
-
-        if self.indic_surface_window.winfo_exists():
-            self.indic_surf_canvas.after(30, self.update_indic_surf_canvas)
+        self.indic_surf_canvas.config(width=resized_width, height=resized_height)
         
-        else:
-            print("non-existence recognized")
+        if self.indic_surface_window.winfo_exists():
+            self.indic_surf_canvas.after(35, self.update_indic_surf_canvas)
 
     def draw_on_press(self, event):
         
@@ -998,7 +1136,7 @@ class OCR_GUI:
         if self.surface_polygon is not None:
             self.indic_surf_canvas.delete(self.surface_polygon)
 
-        self.surface_img_coords = [self.find_img_coords(point_coords) for point_coords in self.surface_world_coords]
+        self.surface_img_coords = [self.find_img_coords(point_coords, self.rvec, self.tvec) for point_coords in self.surface_world_coords]
         
         # Transform coordinates of the point for the canvas scale
         surface_canvas_coords = []
@@ -1072,12 +1210,12 @@ class OCR_GUI:
         else:
             return np.nan * np.ones(3)
 
-    def find_img_coords(self, world_coords):
+    def find_img_coords(self, world_coords, rvec, tvec):
         
         point_3d = np.array(world_coords).reshape((1, 1, 3))
 
         # Use projectPoints to project the 3D point onto the 2D image plane
-        point_2d, _ = cv2.projectPoints(point_3d, self.rvec, self.tvec, self.mtx, self.dist)
+        point_2d, _ = cv2.projectPoints(point_3d, rvec, tvec, self.mtx, self.dist)
 
         # Extract the pixel coordinates of the projected point
         pixel_coords = tuple(map(int, point_2d[0, 0]))
@@ -1086,17 +1224,9 @@ class OCR_GUI:
 
 
 
-def get_available_cameras():
-    available_cameras = []
-    index = 0
-    cap = cv2.VideoCapture(index, cv2.CAP_DSHOW)
-    while cap.isOpened():
-        available_cameras.append(index)
-        ret, frame = cap.read()
-        cap.release()
-        index += 1
-        cap = cv2.VideoCapture(index, cv2.CAP_DSHOW)
-    return available_cameras
+
+
+
 
 def resize_with_ratio(max_width, max_height, width, height):
 
@@ -1125,7 +1255,6 @@ def resize_with_ratio(max_width, max_height, width, height):
 root = tk.Tk()
 root.bind('<Escape>', lambda e: root.quit())
 root.geometry = ("1080x720")
-# root.config(bg="skyblue")
 gui = OCR_GUI(root)
 root.mainloop()
 

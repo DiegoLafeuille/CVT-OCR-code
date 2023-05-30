@@ -122,7 +122,7 @@ class OCR_GUI:
         self.cam = None
         self.cam_label = ttk.Label(self.parameters_frame, text="Calibration folder:")
         self.cam_label.grid(row=1, column=0, padx=5, pady=5)
-        self.camera_names = ["daheng_3mm", "pc08_webcam", "jans_webcam", "diegos_phone", "diegos_iriun", "jans_webcam_charuco"]
+        self.camera_names = ["daheng_6mm", "daheng_3mm", "pc08_webcam", "jans_webcam", "diegos_phone", "diegos_iriun", "jans_webcam_charuco"]
         self.camera_name_dropdown = ttk.Combobox(self.parameters_frame, value=self.camera_names)
         self.camera_name_dropdown.current(0)
         self.selected_camera = self.camera_name_dropdown.get()
@@ -157,8 +157,8 @@ class OCR_GUI:
         self.aruco_size_label = ttk.Label(self.parameters_frame, text="Aruco marker size [meters]:")
         self.aruco_size_label.grid(row=4, column=0, padx=5, pady=5)
         self.aruco_size_entry = ttk.Entry(self.parameters_frame)
-        self.aruco_size = 0.016
-        self.aruco_size_entry.insert(-1, "0.016")
+        self.aruco_size = 0.014
+        self.aruco_size_entry.insert(-1, "0.014")
         self.aruco_size_entry.bind("<Return>", lambda event: on_aruco_size_entry())
         self.aruco_size_entry.grid(row=4, column=1, padx=5, pady=5)
 
@@ -309,7 +309,7 @@ class OCR_GUI:
                 self.cam = self.device_manager.open_device_by_sn(self.camera_input_dropdown.get())
                 
                 self.cam.TriggerMode.set(gx.GxSwitchEntry.OFF)
-                self.cam.ExposureTime.set(361961.0)
+                self.cam.ExposureTime.set(100000.0)
                 self.cam.Gain.set(10.0)
 
                 # get param of improving image quality
@@ -486,7 +486,8 @@ class OCR_GUI:
                 self.canvas.unbind("<B1-Motion>")
                 self.canvas.unbind("<ButtonRelease-1>")
 
-                self.ocr_thread = threading.Thread(target=self.do_ocr, daemon=True)
+                roi_list = self.create_rois()
+                self.ocr_thread = threading.Thread(target=self.do_ocr, daemon=True, args=[roi_list])
                 self.ocr_thread.start()
 
         # Stop OCR
@@ -498,11 +499,10 @@ class OCR_GUI:
             self.canvas.bind("<B1-Motion>", self.on_move_press)
             self.canvas.bind("<ButtonRelease-1>", self.on_button_release)       
 
-    def do_ocr(self):
+    def do_ocr(self, roi_list):
 
         self.reader = easyocr.Reader(['en'], gpu=False)
         self.last_call_time = time.time()
-        roi_list = self.create_rois()
     
         # Create column names
         cols = ['Timestamp'] + [roi['variable'] for roi in roi_list]
@@ -512,6 +512,8 @@ class OCR_GUI:
                 writer = csv.DictWriter(file, fieldnames=cols)
                 writer.writeheader()
         
+        cv2.namedWindow("ROIs", cv2.WINDOW_NORMAL)
+
         while self.ocr_on:
 
             frame = copy.copy(self.rectified_frame)
@@ -534,6 +536,58 @@ class OCR_GUI:
                 self.last_call_time = time.time()
                 process_webcam_feed(self.rectified_frame, self.reader, roi_list, cols)
                 # print("process_webcam_feed time = ", time.time() - self.last_call_time)
+
+                roi_images = []
+                max_width = 0
+
+                # Find the maximum height among the ROI images
+                for roi in roi_list:
+                    x1 = min(roi['ROI'][0],roi['ROI'][2])
+                    x2 = max(roi['ROI'][0],roi['ROI'][2])
+                    y1 = min(roi['ROI'][1],roi['ROI'][3])
+                    y2 = max(roi['ROI'][1],roi['ROI'][3])
+                    roi_img = frame[y1:y2, x1:x2]
+                    roi_width = roi_img.shape[1]
+                    max_width = max(max_width, roi_width)
+
+                for roi in roi_list:
+                    x1 = min(roi['ROI'][0],roi['ROI'][2])
+                    x2 = max(roi['ROI'][0],roi['ROI'][2])
+                    y1 = min(roi['ROI'][1],roi['ROI'][3])
+                    y2 = max(roi['ROI'][1],roi['ROI'][3])
+                    roi_img = frame[y1:y2, x1:x2]
+                    roi_width = roi_img.shape[1]
+                    if roi_width < max_width:
+                        border_right = (max_width - roi_width) // 2
+                        border_left = max_width - roi_width - border_right
+                        roi_img = cv2.copyMakeBorder(roi_img, 0, 0, border_left, border_right, cv2.BORDER_CONSTANT, value=(255, 255, 255))
+                    roi_images.append(roi_img)
+
+                # Display ROIs in a new window
+                stacked_roi_img = cv2.vconcat(roi_images)
+                cv2.imshow("ROIs", stacked_roi_img)
+                if cv2.waitKey(1) & 0xFF == ord('q'):
+                    break
+        cv2.destroyAllWindows()
+
+    def create_rois(self):
+
+        # Create list of ROIs
+        rois = []
+        # Adjust ROI coordinates from canvas size to frame size
+        for rectangle in self.rectangles:
+            if rectangle is None:
+                rois.append(None)
+                continue
+            adjusted_x1 = int(rectangle[0] * self.new_width / self.new_canvas_width)
+            adjusted_y1 = int(rectangle[1] * self.new_height / self.new_canvas_height)
+            adjusted_x2 = int(rectangle[2] * self.new_width / self.new_canvas_width)
+            adjusted_y2 = int(rectangle[3] * self.new_height / self.new_canvas_height)
+            roi = (adjusted_x1, adjusted_y1, adjusted_x2, adjusted_y2)
+            rois.append(roi)
+        
+        roi_list = [{'variable': var.get(), 'ROI': roi, 'only_nums': only_nums.get()} for var, roi, only_nums in zip(self.rect_entries, rois, self.only_nums_list) if roi is not None]
+        return roi_list
 
     def on_button_press(self, event):
         
@@ -703,7 +757,6 @@ class OCR_GUI:
             return
         # print(frame.shape)
         
-        
         # Get video feed resolution
         height, width = frame.shape[:2]
 
@@ -711,12 +764,6 @@ class OCR_GUI:
         scale = min(self.canvas_max_width / width, self.canvas_max_height / height)
         self.new_canvas_width = int(width*scale)
         self.new_canvas_height = int(height*scale)
-
-        # # Undistort image
-        # newcameramtx, roi = cv2.getOptimalNewCameraMatrix(self.mtx, self.dist, (width,height), 1, (width,height))
-        # frame = cv2.undistort(frame, self.mtx, self.dist, None, newcameramtx)
-        # x, y, width, height = roi
-        # frame = frame[y:y+height, x:x+width]
         
         # Detect markers in the frame
         aruco_dict = cv2.aruco.getPredefinedDictionary(ARUCO_DICT[self.aruco_dropdown.get()])
@@ -749,17 +796,10 @@ class OCR_GUI:
                         self.new_width, self.new_height = self.get_surface_dims_one_marker()
                     self.frame_counter += 1
                     
-                    # Transform coordinates of the point for the canvas scale
-                    width_ratio = width / self.new_width
-                    height_ratio = height / self.new_height
                     for point in self.surface_img_coords:
-                        # point_canvas_coords = [int(point[0] / width_ratio), int(point[1] / height_ratio)]
                         point_canvas_coords = [int(point[0]), int(point[1])]
                         warp_input_pts.append(point_canvas_coords)
                     warp_input_pts = np.float32(warp_input_pts)
-                    # warp_input_pts = np.array([np.float32(coord) for coord in warp_input_pts])
-
-
 
                 elif retval:
                     frame = cv2.drawFrameAxes(frame, self.mtx, self.dist, rvec, tvec, 0.1)
@@ -842,7 +882,7 @@ class OCR_GUI:
 
             M = cv2.getPerspectiveTransform(warp_input_pts,warp_output_pts)
 
-            self.rectified_frame = cv2.warpPerspective(frame,M,(self.new_width, self.new_height),flags=cv2.INTER_CUBIC)
+            rectified_frame = cv2.warpPerspective(frame,M,(self.new_width, self.new_height),flags=cv2.INTER_CUBIC)
             # frame_height, frame_width = frame.shape[:2]
 
             # Calculate new image dimensions while keeping original ratio
@@ -851,8 +891,14 @@ class OCR_GUI:
             self.new_canvas_height = int(self.new_height*scale)
 
             # Convert to RGB format
-            self.rectified_frame = cv2.cvtColor(self.rectified_frame, cv2.COLOR_BGR2RGB)
-            frame = self.rectified_frame
+            rectified_frame = cv2.cvtColor(rectified_frame, cv2.COLOR_BGR2RGB)
+            frame = copy.copy(rectified_frame)
+
+            # Preprocessing steps
+            gray_rectified_frame = cv2.cvtColor(rectified_frame, cv2.COLOR_RGB2GRAY)
+            thresh_rectified_frame = cv2.adaptiveThreshold(gray_rectified_frame,255,cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY,11,2)
+            self.rectified_frame = thresh_rectified_frame
+
         
         else:
             self.rectified_frame = None
@@ -871,25 +917,6 @@ class OCR_GUI:
 
         # Repeat after an interval to capture continuously
         self.canvas.after(50, self.show_rectified_camera)
-
-    def create_rois(self):
-
-        # Create list of ROIs
-        rois = []
-        # Adjust ROI coordinates from canvas size to frame size
-        for rectangle in self.rectangles:
-            if rectangle is None:
-                rois.append(None)
-                continue
-            adjusted_x1 = int(rectangle[0] * self.new_width / self.new_canvas_width)
-            adjusted_y1 = int(rectangle[1] * self.new_height / self.new_canvas_height)
-            adjusted_x2 = int(rectangle[2] * self.new_width / self.new_canvas_width)
-            adjusted_y2 = int(rectangle[3] * self.new_height / self.new_canvas_height)
-            roi = (adjusted_x1, adjusted_y1, adjusted_x2, adjusted_y2)
-            rois.append(roi)
-        
-        roi_list = [{'variable': var.get(), 'ROI': roi, 'only_nums': only_nums.get()} for var, roi, only_nums in zip(self.rect_entries, rois, self.only_nums_list) if roi is not None]
-        return roi_list
 
     def get_surface_dims_one_marker(self):
 
@@ -1003,6 +1030,7 @@ class OCR_GUI:
         aruco_dict = cv2.aruco.getPredefinedDictionary(ARUCO_DICT[self.aruco_dropdown.get()])
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         corners, ids, rejectedImgPoints = cv2.aruco.detectMarkers(gray, aruco_dict)
+
         board = aruco.CharucoBoard((self.charuco_width, self.charuco_height), self.square_size, self.aruco_size, aruco_dict)
         aruco.refineDetectedMarkers(gray, board, corners, ids, rejectedImgPoints)
 
@@ -1021,15 +1049,15 @@ class OCR_GUI:
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
         # Undistort image
-        h,  w = frame.shape[:2]
-        newcameramtx, roi = cv2.getOptimalNewCameraMatrix(self.mtx, self.dist, (w,h), 1, (w,h))
+        height,  width = frame.shape[:2]
+        newcameramtx, roi = cv2.getOptimalNewCameraMatrix(self.mtx, self.dist, (width,height), 1, (width,height))
         frame = cv2.undistort(frame, self.mtx, self.dist, None, newcameramtx)
-        x, y, w, h = roi
-        frame = frame[y:y+h, x:x+w]
+        x, y, width, height = roi
+        frame = frame[y:y+height, x:x+width]
 
         max_width = 1280
         max_height = 720
-        resized_width, resized_height = resize_with_ratio(max_width, max_height, w, h)
+        resized_width, resized_height = resize_with_ratio(max_width, max_height, width, height)
         resized_img = cv2.resize(frame, (resized_width, resized_height), interpolation= cv2.INTER_AREA)
 
         img = Image.fromarray(resized_img)

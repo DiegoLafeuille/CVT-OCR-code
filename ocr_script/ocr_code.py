@@ -1,15 +1,15 @@
 import csv
 import datetime
+import cv2
 
 
 def process_webcam_feed(frame, reader, roi_list, cols):
 
-    # print(f"OCR: resolution: {frame.shape[1]}x{frame.shape[0]}")
-    
     # Extract text from the ROIs using easyOCR
     texts = []
     timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
     texts.append(timestamp)
+
     for roi in roi_list:
 
         x1 = min(roi['ROI'][0],roi['ROI'][2])
@@ -19,7 +19,7 @@ def process_webcam_feed(frame, reader, roi_list, cols):
         roi_img = frame[y1:y2, x1:x2]
         
         if roi['only_nums']:
-            text = reader.readtext(roi_img, allowlist = "0123456789.,:'")
+            text = reader.readtext(roi_img, allowlist = '0123456789-+.')
         else:
             text = reader.readtext(roi_img)
         texts.append(text[0][1] if text else "No text recognized")
