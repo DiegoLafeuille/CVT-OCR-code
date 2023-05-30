@@ -9,7 +9,7 @@ import cv2
 device_manager = gx.DeviceManager()
 dev_num, dev_info_list = device_manager.update_device_list()
 
-if dev_num is 0:
+if dev_num == 0:
     print("Number of enumerated devices is 0")
 
 # open the first device
@@ -24,7 +24,7 @@ if cam.PixelColorFilter.is_implemented() is False:
 cam.TriggerMode.set(gx.GxSwitchEntry.OFF)
 
 # set exposure
-cam.ExposureTime.set(361961.0)
+cam.ExposureTime.set(100000.0)
 
 # set gain
 cam.Gain.set(10.0)
