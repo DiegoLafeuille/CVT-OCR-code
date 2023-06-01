@@ -1,34 +1,7 @@
-import csv
-import datetime
 import cv2
-
-
-def do_roi_ocr(frame, reader, roi_list, cols):
-
-    # Extract text from the ROIs using easyOCR
-    texts = []
-    timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
-    texts.append(timestamp)
-
-    for roi in roi_list:
-
-        x1 = min(roi['ROI'][0],roi['ROI'][2])
-        x2 = max(roi['ROI'][0],roi['ROI'][2])
-        y1 = min(roi['ROI'][1],roi['ROI'][3])
-        y2 = max(roi['ROI'][1],roi['ROI'][3])
-        roi_img = frame[y1:y2, x1:x2]
-        roi_img = img_processing_pipeline(roi_img)
-        
-        if roi['only_nums']:
-            text = reader.readtext(roi_img, allowlist = '0123456789-+.')
-        else:
-            text = reader.readtext(roi_img)
-        texts.append(text[0][1] if text else "No text recognized")
-
-    # Write the extracted text to the csv file
-    with open('results.csv', mode='a', newline='') as file:
-        writer = csv.DictWriter(file, fieldnames=cols)
-        writer.writerow({cols[i]: texts[i] for i in range(len(texts))})
+import easyocr
+import copy
+import numpy as np
 
 def img_processing_pipeline(image):
 
@@ -50,8 +23,8 @@ def img_processing_pipeline(image):
     img = cv2.GaussianBlur(img,(7,7),0)
 
     # Initial threshholding
-    # img = cv2.threshold(img, 20, 255, cv2.THRESH_BINARY)[1]
-    otsu_thresh, img = cv2.threshold(img, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    img = cv2.threshold(img, 20, 255, cv2.THRESH_BINARY)[1]
+    # otsu_thresh, img = cv2.threshold(img, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
     # print(otsu_thresh)
     # img = cv2.adaptiveThreshold(img, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 13, 1)
 
@@ -72,3 +45,39 @@ def img_processing_pipeline(image):
 
 
     return img
+
+
+
+
+reader = easyocr.Reader(['en'], gpu=False)
+
+# Open the video file
+video = cv2.VideoCapture('roi_video.avi')
+total_frames = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
+print(f"Total frames: {total_frames}")
+
+while video.isOpened():
+    # Read a frame from the video
+    ret, frame = video.read()
+
+    if not ret:
+        # End of video
+        break
+
+    # Apply image processing to the frame
+    # frame = img_processing_pipeline(frame)
+
+    
+    texts = reader.readtext(frame, allowlist = '0123456789-+.')
+    print([text[1] for text in texts])
+
+    # Display the processed frame
+    cv2.imshow('Processed Video', frame)
+
+    # Check for 'Escape' key press to exit
+    if cv2.waitKey(1) == 27:
+        break
+
+# Release the video file and close windows
+video.release()
+cv2.destroyAllWindows()

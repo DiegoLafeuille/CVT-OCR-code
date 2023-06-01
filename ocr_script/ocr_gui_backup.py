@@ -6,7 +6,7 @@ import cv2
 from cv2 import aruco
 import gxipy as gx
 from PIL import Image, ImageTk
-from ocr_code import process_webcam_feed
+from ocr_code import do_roi_ocr
 import pickle
 import csv
 import easyocr
@@ -536,7 +536,7 @@ class OCR_GUI:
             # Call OCR function if all necessary markers have been detected 
             else:
                 self.last_call_time = time.time()
-                process_webcam_feed(self.rectified_frame, self.reader, roi_list, cols)
+                do_roi_ocr(self.rectified_frame, self.reader, roi_list, cols)
                 # print("process_webcam_feed time = ", time.time() - self.last_call_time)
 
     def create_rois(self):
