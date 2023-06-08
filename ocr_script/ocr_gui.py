@@ -6,10 +6,11 @@ import cv2
 from cv2 import aruco
 import gxipy as gx
 from PIL import Image, ImageTk
-from ocr_code import do_roi_ocr, img_processing_pipeline
+from ocr_code import ocr_on_roi
+import img_processing
+import ocr_code
 import pickle
 import csv
-import easyocr
 import datetime
 import time
 from sympy import symbols, Eq
@@ -252,13 +253,15 @@ class OCR_GUI:
         scrollbar.pack(side = tk.RIGHT, fill = tk.Y)
 
         # Create labels for each column
-        ttk.Label(self.list_frame, text="Nr.").grid(row=0, column=0, padx=15, pady=15)
-        ttk.Label(self.list_frame, text="Variable name").grid(row=0, column=1, padx=15, pady=15)
-        ttk.Label(self.list_frame, text="Only Numerals").grid(row=0, column=2, padx=15, pady=15)
+        ttk.Label(self.list_frame, text="Nr.").grid(row=0, column=0, padx=(10,5), pady=15)
+        ttk.Label(self.list_frame, text="Variable name").grid(row=0, column=1, padx=5, pady=15)
+        ttk.Label(self.list_frame, text="Only Numerals").grid(row=0, column=2, padx=5, pady=15)
+        ttk.Label(self.list_frame, text="Font type").grid(row=0, column=3, padx=5, pady=15)
         self.rect_labels = []
         self.rect_entries = []
         self.only_nums_list = []
         self.rect_char_checkboxs = []
+        self.font_dropdowns = []
         self.rect_delete = []
 
         # Start/Stop OCR button
@@ -500,8 +503,11 @@ class OCR_GUI:
             self.canvas.bind("<ButtonRelease-1>", self.on_button_release)       
 
     def call_ocr(self, roi_list):
+        
+        # Initializing steps of the different involved OCR engines
+        ocr_engines = set([roi['font'].ocr_engine for roi in roi_list])
+        ocr_code.initialize_ocr_engines(ocr_engines)
 
-        self.reader = easyocr.Reader(['en'], gpu=False)
         self.last_call_time = time.time()
     
         # Create column names
@@ -515,7 +521,7 @@ class OCR_GUI:
         cv2.namedWindow("ROIs", cv2.WINDOW_NORMAL)
 
         
-        stacked_roi_images = []
+        # stacked_roi_images = []
 
         while self.ocr_on:
 
@@ -538,7 +544,7 @@ class OCR_GUI:
             # Call OCR function if all necessary markers have been detected 
             else:
                 self.last_call_time = time.time()
-                do_roi_ocr(self.rectified_frame, self.reader, roi_list, cols)
+                ocr_on_roi(self.rectified_frame, roi_list, cols)
                 # print("process_webcam_feed time = ", time.time() - self.last_call_time)
 
                 roi_images = []
@@ -561,7 +567,7 @@ class OCR_GUI:
                     y2 = max(roi['ROI'][1],roi['ROI'][3])
                     roi_img = frame[y1:y2, x1:x2]
 
-                    # roi_img = img_processing_pipeline(roi_img)
+                    # roi_img = process_img(roi_img)
                     roi_width = roi_img.shape[1]
                     if roi_width < max_width:
                         border_right = (max_width - roi_width) // 2
@@ -571,14 +577,14 @@ class OCR_GUI:
 
                 # Display ROIs in a new window
                 stacked_roi_img = cv2.vconcat(roi_images)
-                stacked_roi_images.append(stacked_roi_img)
+                # stacked_roi_images.append(stacked_roi_img)
                 cv2.imshow("ROIs", stacked_roi_img)
-                print(len(stacked_roi_images))
+                # print(len(stacked_roi_images))
                 if cv2.waitKey(1) & 0xFF == ord('q'):
                     break
 
         cv2.destroyAllWindows()
-        save_frames_to_avi(stacked_roi_images)
+        # save_frames_to_avi(stacked_roi_images)
 
     def create_rois(self):
 
@@ -598,7 +604,7 @@ class OCR_GUI:
 
             rois.append(roi)
         
-        roi_list = [{'variable': var.get(), 'ROI': roi, 'only_nums': only_nums.get()} for var, roi, only_nums in zip(self.rect_entries, rois, self.only_nums_list) if roi is not None]
+        roi_list = [{'variable': var.get(), 'ROI': roi, 'only_nums': only_nums.get(), 'font': img_processing.fonts[font_type.current()]} for var, roi, only_nums, font_type in zip(self.rect_entries, rois, self.only_nums_list, self.font_dropdowns) if roi is not None]
         return roi_list
 
     def on_button_press(self, event):
@@ -694,6 +700,11 @@ class OCR_GUI:
         self.rect_char_checkboxs.append(rect_char_checkbox)
         self.only_nums_list.append(only_nums)
 
+        # Creating a dropdown to choose the font type
+        self.font_type_dropdown = ttk.Combobox(self.list_frame, value=[font.name for font in img_processing.fonts])
+        self.font_type_dropdown.current(0)
+        self.font_dropdowns.append(self.font_type_dropdown)
+
         # Creating delete button
         delete_btn = ttk.Button(self.list_frame,text = 'Delete', command=lambda: self.delete_rect(rect_number, delete_btn))
         self.rect_delete.append(delete_btn)
@@ -702,7 +713,8 @@ class OCR_GUI:
         self.rect_labels[-1].grid(row=rect_number,column=0)
         self.rect_entries[-1].grid(row=rect_number,column=1)
         self.rect_char_checkboxs[-1].grid(row=rect_number,column=2)
-        self.rect_delete[-1].grid(row=rect_number,column=3)
+        self.font_dropdowns[-1].grid(row=rect_number,column=3)
+        self.rect_delete[-1].grid(row=rect_number,column=4)
 
     def delete_rect(self, rect_number, btn):
     # Deletes a rectangle and its list element if respective button clicked
@@ -717,6 +729,7 @@ class OCR_GUI:
         self.rect_entries[rect_number-1] = None
         self.rect_char_checkboxs[rect_number-1].destroy()
         self.only_nums_list[rect_number-1] = None
+        self.font_dropdowns[rect_number-1].destroy()
         btn.destroy()
 
     def show_camera(self):
@@ -1291,136 +1304,3 @@ root.bind('<Escape>', lambda e: root.quit())
 root.geometry = ("1080x720")
 gui = OCR_GUI(root)
 root.mainloop()
-
-
-
-
-
-# def estimate_3d_coordinates(points, num_iterations=100, sample_size=3, threshold=0.1):
-#     best_model = None
-#     best_inliers = []
-    
-#     for _ in range(num_iterations):
-#         # Randomly select a minimal sample
-#         sample_indices = np.random.choice(len(points), size=sample_size, replace=False)
-#         sample_points = points[sample_indices]
-        
-#         # Fit a model (e.g., plane or sphere) to the sample points
-        
-#         # Evaluate the model and find inliers
-#         residuals = calculate_residuals(points, sample_points, best_model)
-#         inliers = np.where(residuals < threshold)[0]
-        
-#         # Check if this model has more inliers than the previous best model
-#         if len(inliers) > len(best_inliers):
-#             best_model = fit_model(points[inliers])
-#             best_inliers = inliers
-            
-#     # Refit the model using all inliers
-#     final_model = fit_model(points[best_inliers])
-    
-#     # Return the estimated 3D coordinates
-#     estimated_coordinates = least_squares_estimation(points[best_inliers], final_model)
-#     print(np.shape(estimated_coordinates))
-    
-#     return estimated_coordinates
-
-# def calculate_residuals(points, sample_points, model):
-#     # Calculate residuals between the model and all points
-#     residuals = np.abs(distance_to_model(points, sample_points, model))
-#     return residuals
-
-# def fit_model(data):
-#     """Fits a line model to the given 2D data points using least squares."""
-#     x = data[:, 0]
-#     y = data[:, 1]
-#     A = np.vstack([x, np.ones_like(x)]).T
-#     m, c = np.linalg.lstsq(A, y, rcond=None)[0]
-#     return m, c
-
-# def distance_to_model(data, model):
-#     """Calculates the perpendicular distance from each data point to the line model."""
-#     m, c = model
-#     x = data[:, 0]
-#     y = data[:, 1]
-#     distances = np.abs(m * x - y + c) / np.sqrt(m**2 + 1)
-#     return distances
-
-# def least_squares_estimation(data, num_iterations, threshold):
-#     """Performs RANSAC least squares estimation to robustly fit a line model to the data."""
-#     best_model = None
-#     best_inliers = None
-#     best_num_inliers = 0
-
-#     for i in range(num_iterations):
-#         # Randomly sample two points from the data
-#         sample_indices = np.random.choice(data.shape[0], 2, replace=False)
-#         sample = data[sample_indices]
-
-#         # Fit a model to the sampled points
-#         model = fit_model(sample)
-
-#         # Calculate the distances from all points to the model
-#         distances = distance_to_model(data, model)
-
-#         # Count the number of inliers (points within the threshold)
-#         inliers = distances < threshold
-#         num_inliers = np.count_nonzero(inliers)
-
-#         # Check if this model is the best one so far
-#         if num_inliers > best_num_inliers:
-#             best_model = model
-#             best_inliers = inliers
-#             best_num_inliers = num_inliers
-
-#     # Refit the model using all the inliers
-#     inlier_points = data[best_inliers]
-#     best_model = fit_model(inlier_points)
-
-#     return best_model
-
-# def least_squares_average(points, n_outliers=0.2, max_iterations=100, tolerance=1e-6):
-#     """Computes the least squares estimate of the average point for a list of 3D points.
-
-#     Args:
-#         points: A list of 3D points.
-#         n_outliers: The percentage of distances to discard as outliers.
-#         max_iterations: The maximum number of iterations to perform.
-#         tolerance: The tolerance for convergence.
-
-#     Returns:
-#         The least squares estimate of the average point.
-#     """
-#     # Convert points to a numpy array for easier computation.
-#     points = np.array(points)
-
-#     # Choose an initial estimate for the average point.
-#     average = np.mean(points, axis=0)
-
-#     for iteration in range(max_iterations):
-#         # Compute the distance between each point and the current estimate.
-#         distances = np.linalg.norm(points - average, axis=1)
-
-#         # Sort the distances in ascending order.
-#         sorted_distances = np.sort(distances)
-
-#         # Discard the top n percent of the distances as outliers.
-#         n = int(n_outliers * len(points))
-#         inliers = sorted_distances[n:]
-
-#         # Compute the least squares estimate of the average point using the remaining distances.
-#         if len(inliers) == 0:
-#             # All points were outliers, so we can't compute a least squares estimate.
-#             break
-
-#         new_average = np.mean(points[distances <= inliers[-1]], axis=0)
-
-#         # Check for convergence.
-#         if np.allclose(average, new_average, atol=tolerance):
-#             break
-
-#         average = new_average
-
-#     return average
-
-
