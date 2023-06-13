@@ -279,9 +279,15 @@ class OCR_GUI:
 
         if cam_type == 'daheng':
             dev_num, dev_info_list = self.device_manager.update_device_list()
+            
+            # If no Daheng camera found revert to webcam
             if dev_num == 0:
-                print("Number of enumerated devices is 0")
-                raise Exception("NoCameraFound")
+                print("Number of Daheng devices found is 0")
+                self.cam = None
+                self.cam_type.set("webcam")
+                self.selected_cam_type = self.cam_type.get()
+                return self.get_available_cameras()
+
             for cam in dev_info_list:
                 # print(cam['sn'])
                 available_cameras.append(cam['sn'])
@@ -465,12 +471,12 @@ class OCR_GUI:
             rgb_image = raw_image.convert("RGB")
             rgb_image.image_improvement(self.color_correction_param, self.contrast_lut, self.gamma_lut)
             frame = rgb_image.get_numpy_array()
-            frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR) 
             if frame is None:
                 ret = False
 
         else:
             ret, frame = self.cam.read()
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         
         return ret, frame
 
@@ -503,6 +509,9 @@ class OCR_GUI:
             self.canvas.bind("<ButtonRelease-1>", self.on_button_release)       
 
     def call_ocr(self, roi_list):
+
+        # Boolean to save video of ROIs if wished
+        save_video = False
         
         # Initializing steps of the different involved OCR engines
         ocr_engines = set([roi['font'].ocr_engine for roi in roi_list])
@@ -520,8 +529,8 @@ class OCR_GUI:
         
         cv2.namedWindow("ROIs", cv2.WINDOW_NORMAL)
 
-        
-        # stacked_roi_images = []
+        if save_video:
+            stacked_roi_images = []
 
         while self.ocr_on:
 
@@ -567,7 +576,9 @@ class OCR_GUI:
                     y2 = max(roi['ROI'][1],roi['ROI'][3])
                     roi_img = frame[y1:y2, x1:x2]
 
-                    # roi_img = process_img(roi_img)
+                    roi_img = roi['font'].proc_pipeline(roi_img)
+                    if len(roi_img.shape) < 3:
+                        roi_img = cv2.cvtColor(roi_img, cv2.COLOR_GRAY2RGB)
                     roi_width = roi_img.shape[1]
                     if roi_width < max_width:
                         border_right = (max_width - roi_width) // 2
@@ -577,14 +588,17 @@ class OCR_GUI:
 
                 # Display ROIs in a new window
                 stacked_roi_img = cv2.vconcat(roi_images)
-                # stacked_roi_images.append(stacked_roi_img)
+                stacked_roi_img = cv2.cvtColor(stacked_roi_img, cv2.COLOR_RGB2BGR)
+                if save_video:
+                    stacked_roi_images.append(stacked_roi_img)
+                    print(len(stacked_roi_images))
                 cv2.imshow("ROIs", stacked_roi_img)
-                # print(len(stacked_roi_images))
                 if cv2.waitKey(1) & 0xFF == ord('q'):
                     break
 
         cv2.destroyAllWindows()
-        # save_frames_to_avi(stacked_roi_images)
+        if save_video:
+            save_frames_to_avi(stacked_roi_images)
 
     def create_rois(self):
 
@@ -767,10 +781,9 @@ class OCR_GUI:
                 cv2.line(frame, tuple(pts[2]), tuple(pts[3]), (0, 255, 0), thickness=8)
                 cv2.line(frame, tuple(pts[3]), tuple(pts[0]), (0, 255, 0), thickness=8)
 
-        cv2image= cv2.cvtColor(frame,cv2.COLOR_BGR2RGB)
-        cv2image_resized = cv2.resize(cv2image, (self.resize_width, self.resize_height), interpolation=cv2.INTER_AREA)
+        frame_resized = cv2.resize(frame, (self.resize_width, self.resize_height), interpolation=cv2.INTER_AREA)
         
-        img = Image.fromarray(cv2image_resized)
+        img = Image.fromarray(frame_resized)
         # Convert image to PhotoImage
         imgtk = ImageTk.PhotoImage(image=img)
         self.video_label.imgtk = imgtk
@@ -785,16 +798,14 @@ class OCR_GUI:
         if not ret:
             self.canvas.after(50, self.show_rectified_camera)
             return
-        # print(frame.shape)
         
         # Get video feed resolution
         height, width = frame.shape[:2]
+        # print(f"Rectified original frame resolution {width}x{height}")
 
-
-        
         # Detect markers in the frame
         aruco_dict = cv2.aruco.getPredefinedDictionary(ARUCO_DICT[self.aruco_dropdown.get()])
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        gray = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
         corners, self.ids, rejectedImgPoints = cv2.aruco.detectMarkers(gray, aruco_dict)
 
         warp_input_pts = []
@@ -909,13 +920,12 @@ class OCR_GUI:
 
             M = cv2.getPerspectiveTransform(warp_input_pts,warp_output_pts)
 
-            rectified_frame = cv2.warpPerspective(frame,M,(self.new_width, self.new_height),flags=cv2.INTER_CUBIC)
+            self.rectified_frame = cv2.warpPerspective(frame,M,(self.new_width, self.new_height),flags=cv2.INTER_CUBIC)
             # frame_height, frame_width = frame.shape[:2]
 
             self.new_canvas_width, self.new_canvas_height = resize_with_ratio(self.canvas_max_width, self.canvas_max_height, self.new_width, self.new_height)
 
             # Convert to RGB format
-            self.rectified_frame = cv2.cvtColor(rectified_frame, cv2.COLOR_BGR2RGB)
             frame = copy.copy(self.rectified_frame)
         
         else:
@@ -923,7 +933,6 @@ class OCR_GUI:
             self.new_canvas_width, self.new_canvas_height = resize_with_ratio(self.canvas_max_width, self.canvas_max_height, width, height)
             
             self.rectified_frame = None
-            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
         # Resize image with new dimensions
         resized_frame = cv2.resize(frame, (self.new_canvas_width, self.new_canvas_height), interpolation=cv2.INTER_AREA)
@@ -1037,6 +1046,9 @@ class OCR_GUI:
 
         ret, frame = self.get_frame()
 
+        # height, width = frame.shape[:2]
+        # print(f"Indic surface frame resolution {width}x{height}")
+
         if not ret:
             messagebox.showerror("Error", "No image could be read from the camera")
             return
@@ -1049,7 +1061,7 @@ class OCR_GUI:
         # frame = frame[y:y+h, x:x+w]
 
         aruco_dict = cv2.aruco.getPredefinedDictionary(ARUCO_DICT[self.aruco_dropdown.get()])
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        gray = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
         corners, ids, rejectedImgPoints = cv2.aruco.detectMarkers(gray, aruco_dict)
 
         board = aruco.CharucoBoard((self.charuco_width, self.charuco_height), self.square_size, self.aruco_size, aruco_dict)
@@ -1065,9 +1077,6 @@ class OCR_GUI:
 
                 if self.display_surface_on:
                     self.display_surface()
-        
-        # Convert the frame to PIL Image format
-        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
         # Undistort image
         height,  width = frame.shape[:2]
@@ -1220,8 +1229,8 @@ class OCR_GUI:
     
     def lines_intersection(self, p1, p2, q1, q2):
         """
-        Given two lines, each represented by a pair of 3D points, compute their
-        intersection point.
+        Given two lines, each represented by a pair of 3D points, compute the coordinates 
+        of the middle point of the shortest segment linking the two lines.
         """
 
         # Calculate direction vectors for each line

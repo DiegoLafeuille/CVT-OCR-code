@@ -6,10 +6,32 @@ class Font:
         self.proc_pipeline = proc_pipeline
         self.ocr_engine = ocr_engine
 
-def default_pipeline(image):
-    '''Default image processing pipeline doesn't do anything to the image.'''
-    
+def no_processing_pipeline(image):
+    '''Image returned without being processed.'''
     return image
+
+def default_pipeline(image):
+    '''Default image processing pipeline.'''
+
+    # Denoise image
+    denoised = cv2.fastNlMeansDenoisingColored(image,None,10,10,7,21)
+
+    # Tranform image to grayscale
+    gray = cv2.cvtColor(denoised, cv2.COLOR_RGB2GRAY)
+
+    # Blur to remove noise
+    blur = cv2.GaussianBlur(gray,(7,7),0)
+
+    # Threshold
+    thresh = cv2.threshold(blur, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]
+
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
+    opened = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel)
+
+    # Turn back to RGB format
+    processed_img = cv2.cvtColor(opened, cv2.COLOR_GRAY2RGB)
+
+    return processed_img
 
 def br_pipeline(image):
     '''Image processing pipeline for black font on red background.'''
@@ -21,13 +43,13 @@ def br_pipeline(image):
     blur = cv2.GaussianBlur(gray,(7,7),0)
 
     # Initial threshholding
-    _, thresh = cv2.threshold(blur, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    thresh = cv2.threshold(blur, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]
 
     # Distance transform and threshholding of distance map
     dist = cv2.distanceTransform(thresh, cv2.DIST_L2, 5)
     normed_dist = cv2.normalize(dist, dist, 0, 1.0, cv2.NORM_MINMAX)
     normed_dist = (normed_dist * 255).astype("uint8")
-    _, thresh = cv2.threshold(normed_dist, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]
+    thresh = cv2.threshold(normed_dist, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]
 
     # "Opening" morphological operation to disconnect components
     kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
@@ -45,7 +67,7 @@ def ld_7_seg_pipeline(image):
     blur = cv2.GaussianBlur(gray,(7,7),0)
 
     # Initial threshholding
-    _, thresh = cv2.threshold(blur, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+    thresh = cv2.threshold(blur, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)[1]
 
     # Turn image back into RGB to have the right shape
     processed_img = cv2.cvtColor(thresh, cv2.COLOR_GRAY2RGB)
@@ -62,7 +84,7 @@ def dl_7_seg_pipeline(image):
     blur = cv2.GaussianBlur(gray,(7,7),0)
 
     # Initial threshholding
-    _, thresh = cv2.threshold(blur, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    thresh = cv2.threshold(blur, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]
 
     # Turn image back into RGB to have the right shape
     processed_img = cv2.cvtColor(thresh, cv2.COLOR_GRAY2RGB)
@@ -71,6 +93,7 @@ def dl_7_seg_pipeline(image):
 
 
 fonts = [
+    Font("None", no_processing_pipeline, "easyocr"),
     Font("Default", default_pipeline, "easyocr"),
     Font("Black on red", br_pipeline, "easyocr"),
     Font("Light on dark, 7-segments", ld_7_seg_pipeline, "tesseract"),
