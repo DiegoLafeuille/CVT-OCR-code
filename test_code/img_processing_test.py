@@ -9,14 +9,14 @@ import math
 def default_pipeline(image):
     '''Default image processing pipeline.'''
 
-    img = image
+    img = copy.copy(image)
 
-    # Denoise image
-    img = cv2.fastNlMeansDenoisingColored(image,None,10,10,7,21)
+    # # Denoise image
+    # img = cv2.fastNlMeansDenoisingColored(img,None,10,10,7,21)
 
-    # Tranform image to grayscale
-    img = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
-
+    # Grayscale with gray value equal to highest value between R, G and B
+    img = np.max(img, axis=2)
+    
     # Blur to remove noise
     img = cv2.GaussianBlur(img,(7,7),0)
 
@@ -120,7 +120,7 @@ def resize_with_ratio(max_width, max_height, width, height):
 
 def main():
 
-    reader = easyocr.Reader(['en'], gpu=False)
+    # reader = easyocr.Reader(['en'], gpu=False)
 
     # Open the video file
     video = cv2.VideoCapture('roi_video.avi')
@@ -133,9 +133,12 @@ def main():
         # Read a frame from the video
         ret, frame = video.read()
 
+        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
         if not ret:
             # End of video
             break
+
 
         height, width = frame.shape[:2]
         new_w, new_h = resize_with_ratio(1024, 720, width, height)
@@ -146,32 +149,33 @@ def main():
         row_height = math.ceil(height / row_number)
         rows = [frame[i * row_height : (i + 1) * row_height, :] for i in range(row_number)]
 
-        process_time = 0
-        ocr_time = 0
+        # process_time = 0
+        # ocr_time = 0
         processed_rows = []
 
         # Process each row separately
         for i, row in enumerate(rows):
             # Apply image processing to the row of the frame
-            current_time = time.time()
+            # current_time = time.time()
             processed_row = default_pipeline(row)
             processed_rows.append(processed_row)
-            process_time =+ time.time() - current_time
+            # process_time =+ time.time() - current_time
 
-            current_time = time.time()
-            if i == 4:
-                texts = reader.readtext(processed_row)
-            else:
-                texts = reader.readtext(processed_row, allowlist = '0123456789-+.')
-            ocr_time =+ time.time() - current_time
-            print([text[1] for text in texts])
+            # current_time = time.time()
+            # if i == 4:
+            #     texts = reader.readtext(processed_row)
+            # else:
+            #     texts = reader.readtext(processed_row, allowlist = '0123456789-+.')
+            # ocr_time =+ time.time() - current_time
+            # print([text[1] for text in texts])
 
-        print(f"Image processing time: {process_time}")
-        print(f"OCR time: {ocr_time}")
+        # print(f"Image processing time: {process_time}")
+        # print(f"OCR time: {ocr_time}")
 
         # Display the processed frame
         processed_frame = cv2.vconcat(processed_rows)
         frame = cv2.hconcat([frame, processed_frame])
+        frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
 
         cv2.imshow('Processed Video', frame)
 
