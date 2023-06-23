@@ -1,21 +1,19 @@
 import parameters_codex as param
 from PIL import Image, ImageDraw, ImageFont
 import random
-import csv
 import pandas as pd
+import copy
 
 
-def generate_number_image(number, font_size, background_color=(255, 255, 255), text_color=(0, 0, 0), font_path=None):
+
+def generate_number_image(number, font_path, font_size, background_color, text_color):
     
     # Create a new image with the specified background color
     image_size = (500, 300)
     image = Image.new('RGB', image_size, background_color)
     
-    # Load a font (change the font_path to the path of the font file on your system)
-    if font_path:
-        font = ImageFont.truetype(font_path, font_size)
-    else:
-        font = ImageFont.truetype("arial.ttf", font_size)
+    # Load a font
+    font = ImageFont.truetype(font_path, font_size)
     
     # Calculate the position to center the number
     draw = ImageDraw.Draw(image)
@@ -35,76 +33,62 @@ def generate_number_image(number, font_size, background_color=(255, 255, 255), t
 def main():
 
     ground_truths = []
+    digits = list(range(10))
         
-    # for font in param.fonts:
-    #     for size in param.sizes:
-    #         for length in param.lengths:
-    #             for decimal in param.decimals:
-    #                 for color in param.colors:
-    #                     for i in range(5):    
-    #                         if length == "0":
-    #                             number = random.randint(100, 999)
-    #                         if decimal == "1":
-    #                             number = number / 100
-    #                             number = "{:.2f}".format(number)
-    #                         print(number)
-
-    #                         if color == "0":
-    #                             text_color = (0, 0, 0)
-    #                             background_color = (255, 255, 255)
-    #                         elif color == "1":
-    #                             text_color = (255, 255, 255)
-    #                             background_color = (0, 0, 0)
-    #                         elif color == "2":
-    #                             text_color = (0, 0, 0)
-    #                             background_color = (255, 0, 0)
-    #                         elif color == "3":
-    #                             text_color = (0, 0, 0)
-    #                             background_color = (0, 255, 0)
-
-    #                         image = generate_number_image(number, 128, background_color, text_color, font_path=None)
-
-
-    #                         img_code = font + size + length + decimal + color + str(i)
-    #                         image.save("slides/" + img_code + ".png")
-
-    #                         ground_truths.append((img_code, number))
-
-
-    for length in param.lengths:
-        for decimal in param.decimals:
-            for color in param.colors:
-                for i in range(3):  
+    for font in param.fonts:
+        for size in param.sizes:
+            for color in param.colors: 
                     
-                    if length == "0":
-                        number = random.randint(100, 999)
-                    elif length == "1":
-                        number = random.randint(10000, 99999)
+                # Font parameter
+                if font == "0":
+                    font_path = "experiment/fonts/arial.ttf"
+                elif font == "1":
+                    font_path = "experiment/fonts/arialbd.ttf"
+                elif font == "2":
+                    font_path = "experiment/fonts/micross.ttf"
+                elif font == "3":
+                    # Verify that MS Reference Sans Serif and MS Sans Serif are the same
+                    font_path = "experiment/fonts/microssbd.ttf"  
+                elif font == "4":
+                    font_path = "experiment/fonts/Let_s_go_Digital_Regular.ttf"
 
-                    if decimal == "1":
-                        number = number / 100
-                        number = "{:.2f}".format(number)
-                    print(number)
+                # Size parameter
+                if size == "0":
+                    font_size = 70
+                elif size == "1":
+                    font_size = 50
+                elif size == "2":
+                    font_size = 30
 
-                    if color == "0":
-                        text_color = (0, 0, 0)
-                        background_color = (255, 255, 255)
-                    elif color == "1":
-                        text_color = (255, 255, 255)
-                        background_color = (0, 0, 0)
-                    elif color == "2":
-                        text_color = (0, 0, 0)
-                        background_color = (255, 0, 0)
-                    elif color == "3":
-                        text_color = (0, 0, 0)
-                        background_color = (0, 255, 0)
+                # Create a number made up of digits 0 to 9 in a random number
+                shuffled_digits = copy.copy(digits)
+                random.shuffle(shuffled_digits)
 
-                    image = generate_number_image(number, 70, background_color, text_color, font_path=None)
-                    img_code = length + decimal + color + str(i)
-                    
-                    image.save("experiment/slides/" + img_code + ".png")
-                    print("Picture saved")
-                    ground_truths.append((img_code, number))
+                # Insert decimal point at the randomly chosen index
+                decimal_index = random.randint(1, len(shuffled_digits) - 1)
+                shuffled_digits.insert(decimal_index, '.')
+                number = ''.join(str(num) for num in shuffled_digits)
+
+                if color == "0":
+                    text_color = (0, 0, 0)
+                    background_color = (255, 255, 255)
+                elif color == "1":
+                    text_color = (255, 255, 255)
+                    background_color = (0, 0, 0)
+                elif color == "2":
+                    text_color = (0, 0, 0)
+                    background_color = (255, 0, 0)
+                elif color == "3":
+                    text_color = (0, 0, 0)
+                    background_color = (0, 255, 0)
+
+                image = generate_number_image(number, font_path, font_size, background_color, text_color)
+                img_code = font + size + color
+                
+                image.save("experiment/slides/" + img_code + ".png")
+                ground_truths.append((img_code, number))
+
+
 
     print(f"Total number of slides is {len(ground_truths)}")
 
@@ -114,8 +98,6 @@ def main():
     # Save the DataFrame to a CSV file
     df.to_csv('experiment/ground_truths.csv', index=False)
     print("Ground truths saved")
-
-
 
 
 if __name__ == '__main__':

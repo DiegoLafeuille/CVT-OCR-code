@@ -1,22 +1,17 @@
+# Code = font + size + color
+
 fonts = {
-    "0": "MS Sans Serif",
-    "1": "Let's Go Digital"
+    "0": "Arial",
+    "1": "Arial bold",
+    "2": "MS Sans Serif",
+    "3": "MS Sans Serif bold",
+    "4": "Let's Go Digital"
     }
 
 sizes = {
     "0": "15 mm",
     "1": "10 m",
     "2": "5 mm"
-    }
-
-lengths = {
-    "0": "3",
-    "1": "5"
-    }
-
-decimals = {
-    "0": "without",
-    "1": "with"
     }
 
 colors = {
@@ -26,7 +21,15 @@ colors = {
     "3": "black on green"
     }
 
-img_processing = {
-    "0": "off",
-    "1": "on"
-    }
+def repr(image_code):
+
+    font = fonts[image_code[0]]
+    size = sizes[image_code[1]]
+    color = colors[image_code[2]]
+
+    print(
+        f"The code {image_code} represents a number with the following attributes:\n",
+        f"Font is {font}\n",
+        f"Size is {size}\n",
+        f"Font color is {color} background\n",
+          )
