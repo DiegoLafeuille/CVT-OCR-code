@@ -16,6 +16,7 @@ import time
 from sympy import symbols, Eq
 import threading
 import copy
+import re
 
 
 # Names of each possible ArUco tag OpenCV supports
@@ -105,9 +106,11 @@ class OCR_GUI:
         self.indicate_surface_button.pack(side=tk.LEFT, padx=15)
 
         # "Download surface and ROI data" button for single aruco method
-        self.dl_button = ttk.Button(button_container, text="Download surface and ROI data", command=self.download_data)
+        self.dl_button = ttk.Button(button_container, text="Download surface and ROI data", command=self.file_name_entry_window)
         self.dl_button.pack(side=tk.LEFT, padx=15)
 
+        self.surface_world_coords = []
+        self.roi_list = []
 
         ############################### Right frame ###############################
         
@@ -996,7 +999,7 @@ class OCR_GUI:
         return new_width, new_height
 
 
-    #################### Methods for one marker method ####################
+    #################### Functions for one marker method ####################
 
     def indicate_surface_window_init(self):
 
@@ -1044,7 +1047,6 @@ class OCR_GUI:
         self.move_shape = None
         self.coords = []
         self.point_coords = []
-        self.surface_world_coords = []
         self.surface_line_eqs = []
 
         self.update_indic_surf_canvas()
@@ -1281,8 +1283,90 @@ class OCR_GUI:
 
         return pixel_coords
 
-    def download_data(self):
-        pass
+
+    #################### Functions for export button ####################
+
+    def verify_export_conditions(self):
+
+        if not self.surface_world_coords:
+            messagebox.showerror("Error", "Indicate target surface area before exporting data.")
+            return False
+        
+        if not self.rect_entries:
+            messagebox.showerror("Error", "Indicate some regions of interest.")
+            return False
+        
+        # Verify that all entries have variable names which are different and not empty
+        vars = [var.get() for var in self.rect_entries if var is not None]
+        if len(set(vars)) != len(vars) or not all(vars):
+            messagebox.showerror("Error", "All variables need names, and they need to be different.")
+            return False
+        
+        return True
+
+    def file_name_entry_window(self):
+        '''Create a new window'''
+
+        if not self.verify_export_conditions():
+            return
+
+        self.download_window = tk.Toplevel(self.master)
+        self.download_window.geometry = ("600x300")
+        self.download_window.title("Enter Export File Name")
+
+        # Create a label and entry field for file name
+        file_label = ttk.Label(self.download_window, text="File Name:")
+        file_label.pack(side=tk.LEFT, padx=10, pady=10)
+
+        file_entry = ttk.Entry(self.download_window)
+        file_entry.pack(side=tk.LEFT, padx=10, pady=10)
+
+        # Create a submit button
+        submit_button = ttk.Button(self.download_window, text="Submit", command=lambda: self.export_data(file_entry.get()))
+        submit_button.pack(padx=10, pady=10)
+
+    def verify_filename(self, filename):
+
+        if not filename:
+            return False
+        
+        elif not re.match(r'^(?!.*\s)[a-zA-Z0-9_-]+$', filename):
+            messagebox.showerror("Error", "Unauthorized characters.\nAuthorized characters are [a-z] [A-Z] [0-9] [_-]")
+            return False
+
+        return True
+
+    def export_data(self, filename):
+        '''Downloads all necessary data to be able to run script to do the 
+        OCR without need of prior configuration through the API'''
+
+        if not self.verify_filename(filename):
+            return
+
+        export_content = {
+            "Camera type": self.cam_type.get(),
+            "Calibration file": self.selected_camera,
+            "Camera input": self.selected_camera_input,
+            "Aruco dictionary": self.selected_aruco,
+            "Square size": self.aruco_size,
+            "Charuco width": self.charuco_width,
+            "Charuco heigt": self.charuco_height,
+            "ROI list": self.create_rois(),
+            "Target surface world coordinates": self.surface_world_coords,
+        }
+
+        # save the parameters in a pickle file
+        with open('ocr_script/automated_script_params/' + filename + '.pickle', 'wb') as f:
+            pickle.dump(export_content, f)
+
+        print("Exporting data to:", filename + ".pickle")
+
+        self.download_window.destroy()
+    
+
+
+
+
 
 def save_frames_to_avi(frames):
 
