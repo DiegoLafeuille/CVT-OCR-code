@@ -49,12 +49,31 @@ def ocr_on_roi(frame, roi_list, cols):
         writer.writerow({cols[i]: texts[i] for i in range(len(texts))})
 
 def easyocr_ocr(img, only_nums):
+    
     if only_nums:
-        text = easyocr_reader.readtext(img, allowlist = '0123456789-+.')
+        
+        texts = easyocr_reader.readtext(
+            img, 
+            allowlist = '0123456789-+.,', 
+            link_threshold=0.99, 
+            detail = 0, 
+            width_ths = 0.99,
+            height_ths = 0.99,
+        )
+    
     else:
-        text = easyocr_reader.readtext(img)
-    return text[0][1] if text else "No text recognized"
-
+        
+        texts = easyocr_reader.readtext(
+            img, 
+            link_threshold=0.99, 
+            detail = 0, 
+            width_ths = 0.99,
+            height_ths = 0.99,
+        )
+        
+    text = ''.join(texts)
+    return text if text else "No text recognized"
+    
 def tesseract_ocr(img, only_nums):
     if only_nums:
         text = pytesseract.image_to_string(img, lang="lets", config="--psm 7 -c tessedit_char_whitelist=+-.0123456789")

@@ -96,9 +96,17 @@ class OCR_GUI:
         self.canvas.pack(padx=15, pady=15)
         self.canvas_image = self.canvas.create_image(0, 0, anchor=tk.NW)
 
+        # Create a container frame for the buttons
+        button_container = ttk.Frame(self.left_frame)
+        button_container.pack(side=tk.BOTTOM, pady=5)
+
         # "Indicate display surface" button for single aruco method
-        self.indicate_surface_button = ttk.Button(self.left_frame, text="Indicate display surface", command=self.indicate_surface_window_init)
-        self.indicate_surface_button.pack(side=tk.BOTTOM, padx=15, pady=5)
+        self.indicate_surface_button = ttk.Button(button_container, text="Indicate display surface", command=self.indicate_surface_window_init)
+        self.indicate_surface_button.pack(side=tk.LEFT, padx=15)
+
+        # "Download surface and ROI data" button for single aruco method
+        self.dl_button = ttk.Button(button_container, text="Download surface and ROI data", command=self.download_data)
+        self.dl_button.pack(side=tk.LEFT, padx=15)
 
 
         ############################### Right frame ###############################
@@ -444,6 +452,7 @@ class OCR_GUI:
         method = self.marker_method.get()
         if method == "one_marker":
             self.indicate_surface_button.pack(side=tk.BOTTOM, padx=15, pady=5)
+            self.dl_button.pack(side=tk.BOTTOM, padx=15, pady=5)
             self.aruco_size_label.grid_configure(padx=5, pady=5)
             self.aruco_size_entry.grid_configure(padx=5, pady=5)
             self.square_size_label.grid(row=5, column=0, padx=5, pady=5)
@@ -453,6 +462,7 @@ class OCR_GUI:
             self.charuco_height_entry.grid(row=6, column=2, padx=5, pady=(5,20))
         else:
             self.indicate_surface_button.pack_forget()
+            self.dl_button.pack_forget()
             self.aruco_size_label.grid_configure(padx=5, pady=(5,20))
             self.aruco_size_entry.grid_configure(padx=5, pady=(5,20))
             self.square_size_label.grid_remove()
@@ -984,7 +994,6 @@ class OCR_GUI:
         new_width, new_height = resize_with_ratio(self.calib_w, self.calib_h, surface_w, surface_h)
     
         return new_width, new_height
-  
 
 
     #################### Methods for one marker method ####################
@@ -1070,9 +1079,11 @@ class OCR_GUI:
         if np.all(ids is not None):
             charucoretval, charucoCorners, charucoIds = aruco.interpolateCornersCharuco(corners, ids, gray, board)
             frame = aruco.drawDetectedCornersCharuco(frame, charucoCorners, charucoIds, (0,255,0))
-            self.retval, self.rvec, self.tvec = aruco.estimatePoseCharucoBoard(charucoCorners, charucoIds, board, self.mtx, self.dist, np.zeros((3, 1)), np.zeros((3, 1)))
+            self.retval, rvec, tvec = aruco.estimatePoseCharucoBoard(charucoCorners, charucoIds, board, self.mtx, self.dist, np.zeros((3, 1)), np.zeros((3, 1)))
 
             if self.retval == True:
+                self.rvec = rvec
+                self.tvec = tvec
                 frame = cv2.drawFrameAxes(frame, self.mtx, self.dist, self.rvec, self.tvec, 0.1)
 
                 if self.display_surface_on:
@@ -1269,6 +1280,9 @@ class OCR_GUI:
         pixel_coords = tuple(map(int, point_2d[0, 0]))
 
         return pixel_coords
+
+    def download_data(self):
+        pass
 
 def save_frames_to_avi(frames):
 

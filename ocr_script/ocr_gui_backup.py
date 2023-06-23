@@ -7,9 +7,10 @@ from cv2 import aruco
 import gxipy as gx
 from PIL import Image, ImageTk
 from ocr_code import ocr_on_roi
+import img_processing
+import ocr_code
 import pickle
 import csv
-import easyocr
 import datetime
 import time
 from sympy import symbols, Eq
@@ -157,8 +158,8 @@ class OCR_GUI:
         self.aruco_size_label = ttk.Label(self.parameters_frame, text="Aruco marker size [meters]:")
         self.aruco_size_label.grid(row=4, column=0, padx=5, pady=5)
         self.aruco_size_entry = ttk.Entry(self.parameters_frame)
-        self.aruco_size = 0.016
-        self.aruco_size_entry.insert(-1, "0.016")
+        self.aruco_size = 0.014
+        self.aruco_size_entry.insert(-1, "0.014")
         self.aruco_size_entry.bind("<Return>", lambda event: on_aruco_size_entry())
         self.aruco_size_entry.grid(row=4, column=1, padx=5, pady=5)
 
@@ -252,13 +253,15 @@ class OCR_GUI:
         scrollbar.pack(side = tk.RIGHT, fill = tk.Y)
 
         # Create labels for each column
-        ttk.Label(self.list_frame, text="Nr.").grid(row=0, column=0, padx=15, pady=15)
-        ttk.Label(self.list_frame, text="Variable name").grid(row=0, column=1, padx=15, pady=15)
-        ttk.Label(self.list_frame, text="Only Numerals").grid(row=0, column=2, padx=15, pady=15)
+        ttk.Label(self.list_frame, text="Nr.").grid(row=0, column=0, padx=(10,5), pady=15)
+        ttk.Label(self.list_frame, text="Variable name").grid(row=0, column=1, padx=5, pady=15)
+        ttk.Label(self.list_frame, text="Only Numerals").grid(row=0, column=2, padx=5, pady=15)
+        ttk.Label(self.list_frame, text="Font type").grid(row=0, column=3, padx=5, pady=15)
         self.rect_labels = []
         self.rect_entries = []
         self.only_nums_list = []
         self.rect_char_checkboxs = []
+        self.font_dropdowns = []
         self.rect_delete = []
 
         # Start/Stop OCR button
@@ -276,9 +279,15 @@ class OCR_GUI:
 
         if cam_type == 'daheng':
             dev_num, dev_info_list = self.device_manager.update_device_list()
+            
+            # If no Daheng camera found revert to webcam
             if dev_num == 0:
-                print("Number of enumerated devices is 0")
-                raise Exception("NoCameraFound")
+                print("Number of Daheng devices found is 0")
+                self.cam = None
+                self.cam_type.set("webcam")
+                self.selected_cam_type = self.cam_type.get()
+                return self.get_available_cameras()
+
             for cam in dev_info_list:
                 # print(cam['sn'])
                 available_cameras.append(cam['sn'])
@@ -462,24 +471,20 @@ class OCR_GUI:
             rgb_image = raw_image.convert("RGB")
             rgb_image.image_improvement(self.color_correction_param, self.contrast_lut, self.gamma_lut)
             frame = rgb_image.get_numpy_array()
-            frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR) 
             if frame is None:
                 ret = False
 
         else:
             ret, frame = self.cam.read()
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         
         return ret, frame
 
     def toggle_ocr(self):
-        print('Hello 1')
 
         # Start OCR
         if not self.ocr_on:
-            print('Hello 2')
             vars = [var.get() for var in self.rect_entries if var is not None]
-            print('Hello 3')
-            print(vars)
             # Verify that all entries have variable names which are different and not empty
             if len(set(vars)) != len(vars) or not all(vars):
                 messagebox.showerror("Error", "All variables need names, and they need to be different.")
@@ -490,7 +495,8 @@ class OCR_GUI:
                 self.canvas.unbind("<B1-Motion>")
                 self.canvas.unbind("<ButtonRelease-1>")
 
-                self.ocr_thread = threading.Thread(target=self.do_ocr, daemon=True)
+                roi_list = self.create_rois()
+                self.ocr_thread = threading.Thread(target=self.call_ocr, daemon=True, args=[roi_list])
                 self.ocr_thread.start()
 
         # Stop OCR
@@ -502,11 +508,16 @@ class OCR_GUI:
             self.canvas.bind("<B1-Motion>", self.on_move_press)
             self.canvas.bind("<ButtonRelease-1>", self.on_button_release)       
 
-    def do_ocr(self):
+    def call_ocr(self, roi_list):
 
-        self.reader = easyocr.Reader(['en'], gpu=False)
+        # Boolean to save video of ROIs if wished
+        save_video = False
+        
+        # Initializing steps of the different involved OCR engines
+        ocr_engines = set([roi['font'].ocr_engine for roi in roi_list])
+        ocr_code.initialize_ocr_engines(ocr_engines)
+
         self.last_call_time = time.time()
-        roi_list = self.create_rois()
     
         # Create column names
         cols = ['Timestamp'] + [roi['variable'] for roi in roi_list]
@@ -516,7 +527,13 @@ class OCR_GUI:
                 writer = csv.DictWriter(file, fieldnames=cols)
                 writer.writeheader()
         
+        cv2.namedWindow("ROIs", cv2.WINDOW_NORMAL)
+
+        if save_video:
+            stacked_roi_images = []
+
         while self.ocr_on:
+
 
             frame = copy.copy(self.rectified_frame)
 
@@ -536,31 +553,72 @@ class OCR_GUI:
             # Call OCR function if all necessary markers have been detected 
             else:
                 self.last_call_time = time.time()
-                ocr_on_roi(self.rectified_frame, self.reader, roi_list, cols)
+                ocr_on_roi(self.rectified_frame, roi_list, cols)
                 # print("process_webcam_feed time = ", time.time() - self.last_call_time)
+
+                roi_images = []
+                max_width = 0
+
+                # Find the maximum height among the ROI images
+                for roi in roi_list:
+                    x1 = min(roi['ROI'][0],roi['ROI'][2])
+                    x2 = max(roi['ROI'][0],roi['ROI'][2])
+                    y1 = min(roi['ROI'][1],roi['ROI'][3])
+                    y2 = max(roi['ROI'][1],roi['ROI'][3])
+                    roi_img = frame[y1:y2, x1:x2]
+                    roi_width = roi_img.shape[1]
+                    max_width = max(max_width, roi_width)
+
+                for roi in roi_list:
+                    x1 = min(roi['ROI'][0],roi['ROI'][2])
+                    x2 = max(roi['ROI'][0],roi['ROI'][2])
+                    y1 = min(roi['ROI'][1],roi['ROI'][3])
+                    y2 = max(roi['ROI'][1],roi['ROI'][3])
+                    roi_img = frame[y1:y2, x1:x2]
+
+                    roi_img = roi['font'].proc_pipeline(roi_img)
+                    if len(roi_img.shape) < 3:
+                        roi_img = cv2.cvtColor(roi_img, cv2.COLOR_GRAY2RGB)
+                    roi_width = roi_img.shape[1]
+                    if roi_width < max_width:
+                        border_right = (max_width - roi_width) // 2
+                        border_left = max_width - roi_width - border_right
+                        roi_img = cv2.copyMakeBorder(roi_img, 0, 0, border_left, border_right, cv2.BORDER_CONSTANT, value=(0, 0, 0))
+                    roi_images.append(roi_img)
+
+                # Display ROIs in a new window
+                stacked_roi_img = cv2.vconcat(roi_images)
+                stacked_roi_img = cv2.cvtColor(stacked_roi_img, cv2.COLOR_RGB2BGR)
+                if save_video:
+                    stacked_roi_images.append(stacked_roi_img)
+                    print(len(stacked_roi_images))
+                cv2.imshow("ROIs", stacked_roi_img)
+                if cv2.waitKey(1) & 0xFF == ord('q'):
+                    break
+
+        cv2.destroyAllWindows()
+        if save_video:
+            save_frames_to_avi(stacked_roi_images)
 
     def create_rois(self):
 
         # Create list of ROIs
         rois = []
         # Adjust ROI coordinates from canvas size to frame size
-        for rectangle in self.rectangles:
+        for i, rectangle in enumerate(self.rectangles):
             if rectangle is None:
                 rois.append(None)
                 continue
+
             adjusted_x1 = int(rectangle[0] * self.new_width / self.new_canvas_width)
             adjusted_y1 = int(rectangle[1] * self.new_height / self.new_canvas_height)
             adjusted_x2 = int(rectangle[2] * self.new_width / self.new_canvas_width)
             adjusted_y2 = int(rectangle[3] * self.new_height / self.new_canvas_height)
             roi = (adjusted_x1, adjusted_y1, adjusted_x2, adjusted_y2)
+
             rois.append(roi)
         
-        print([f"0: {var}, {roi}, {only_nums}" for var, roi, only_nums in zip(self.rect_entries, rois, self.only_nums_list) if roi is not None])
-        print([f"1: {var.get()}, {roi}, {only_nums}" for var, roi, only_nums in zip(self.rect_entries, rois, self.only_nums_list) if roi is not None])
-        print([f"2: {var}, {roi}, {only_nums.get()}" for var, roi, only_nums in zip(self.rect_entries, rois, self.only_nums_list) if roi is not None])
-        print([f"3: {var.get()}, {roi}, {only_nums.get()}" for var, roi, only_nums in zip(self.rect_entries, rois, self.only_nums_list) if roi is not None])
-        
-        roi_list = [{'variable': var.get(), 'ROI': roi, 'only_nums': only_nums.get()} for var, roi, only_nums in zip(self.rect_entries, rois, self.only_nums_list) if roi is not None]
+        roi_list = [{'variable': var.get(), 'ROI': roi, 'only_nums': only_nums.get(), 'font': img_processing.fonts[font_type.current()]} for var, roi, only_nums, font_type in zip(self.rect_entries, rois, self.only_nums_list, self.font_dropdowns) if roi is not None]
         return roi_list
 
     def on_button_press(self, event):
@@ -581,7 +639,7 @@ class OCR_GUI:
             self.start_y = canvas_height
 
         # create a rectangle with initial coordinates
-        self.rect = self.canvas.create_rectangle(self.start_x, self.start_y, self.start_x, self.start_y, outline='red', width=3)
+        self.rect = self.canvas.create_rectangle(self.start_x, self.start_y, self.start_x, self.start_y, outline='red', width=1)
         self.rectangles_drawing.append(self.rect)
 
     def on_move_press(self, event):
@@ -625,6 +683,7 @@ class OCR_GUI:
             y2 = canvas_height
 
         self.rectangles.append((x1, y1, x2, y2))
+        self.canvas.coords(self.rect, x1, y1, x2, y2)
 
         # create a new label for the rectangle number
         rect_number = len(self.rectangles)
@@ -633,6 +692,10 @@ class OCR_GUI:
         label = ttk.Label(self.canvas, text=str(rect_number), font=('Arial', 12), background='white', foreground='black')
         label.place(x=label_x, y=label_y, anchor='center')
         self.rect_drawing_labels.append(label)
+
+        self.add_variable_list_elem(rect_number)
+
+    def add_variable_list_elem(self, rect_number):
 
         # Declaring string variable for storing variable name
         rect_var=tk.StringVar()
@@ -651,6 +714,11 @@ class OCR_GUI:
         self.rect_char_checkboxs.append(rect_char_checkbox)
         self.only_nums_list.append(only_nums)
 
+        # Creating a dropdown to choose the font type
+        self.font_type_dropdown = ttk.Combobox(self.list_frame, value=[font.name for font in img_processing.fonts])
+        self.font_type_dropdown.current(0)
+        self.font_dropdowns.append(self.font_type_dropdown)
+
         # Creating delete button
         delete_btn = ttk.Button(self.list_frame,text = 'Delete', command=lambda: self.delete_rect(rect_number, delete_btn))
         self.rect_delete.append(delete_btn)
@@ -659,7 +727,8 @@ class OCR_GUI:
         self.rect_labels[-1].grid(row=rect_number,column=0)
         self.rect_entries[-1].grid(row=rect_number,column=1)
         self.rect_char_checkboxs[-1].grid(row=rect_number,column=2)
-        self.rect_delete[-1].grid(row=rect_number,column=3)
+        self.font_dropdowns[-1].grid(row=rect_number,column=3)
+        self.rect_delete[-1].grid(row=rect_number,column=4)
 
     def delete_rect(self, rect_number, btn):
     # Deletes a rectangle and its list element if respective button clicked
@@ -674,6 +743,7 @@ class OCR_GUI:
         self.rect_entries[rect_number-1] = None
         self.rect_char_checkboxs[rect_number-1].destroy()
         self.only_nums_list[rect_number-1] = None
+        self.font_dropdowns[rect_number-1].destroy()
         btn.destroy()
 
     def show_camera(self):
@@ -711,10 +781,9 @@ class OCR_GUI:
                 cv2.line(frame, tuple(pts[2]), tuple(pts[3]), (0, 255, 0), thickness=8)
                 cv2.line(frame, tuple(pts[3]), tuple(pts[0]), (0, 255, 0), thickness=8)
 
-        cv2image= cv2.cvtColor(frame,cv2.COLOR_BGR2RGB)
-        cv2image_resized = cv2.resize(cv2image, (self.resize_width, self.resize_height), interpolation=cv2.INTER_AREA)
+        frame_resized = cv2.resize(frame, (self.resize_width, self.resize_height), interpolation=cv2.INTER_AREA)
         
-        img = Image.fromarray(cv2image_resized)
+        img = Image.fromarray(frame_resized)
         # Convert image to PhotoImage
         imgtk = ImageTk.PhotoImage(image=img)
         self.video_label.imgtk = imgtk
@@ -729,26 +798,14 @@ class OCR_GUI:
         if not ret:
             self.canvas.after(50, self.show_rectified_camera)
             return
-        # print(frame.shape)
-        
         
         # Get video feed resolution
         height, width = frame.shape[:2]
+        # print(f"Rectified original frame resolution {width}x{height}")
 
-        # Calculate canvas dimensions while keeping original ratio
-        scale = min(self.canvas_max_width / width, self.canvas_max_height / height)
-        self.new_canvas_width = int(width*scale)
-        self.new_canvas_height = int(height*scale)
-
-        # # Undistort image
-        # newcameramtx, roi = cv2.getOptimalNewCameraMatrix(self.mtx, self.dist, (width,height), 1, (width,height))
-        # frame = cv2.undistort(frame, self.mtx, self.dist, None, newcameramtx)
-        # x, y, width, height = roi
-        # frame = frame[y:y+height, x:x+width]
-        
         # Detect markers in the frame
         aruco_dict = cv2.aruco.getPredefinedDictionary(ARUCO_DICT[self.aruco_dropdown.get()])
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        gray = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
         corners, self.ids, rejectedImgPoints = cv2.aruco.detectMarkers(gray, aruco_dict)
 
         warp_input_pts = []
@@ -777,17 +834,10 @@ class OCR_GUI:
                         self.new_width, self.new_height = self.get_surface_dims_one_marker()
                     self.frame_counter += 1
                     
-                    # Transform coordinates of the point for the canvas scale
-                    width_ratio = width / self.new_width
-                    height_ratio = height / self.new_height
                     for point in self.surface_img_coords:
-                        # point_canvas_coords = [int(point[0] / width_ratio), int(point[1] / height_ratio)]
                         point_canvas_coords = [int(point[0]), int(point[1])]
                         warp_input_pts.append(point_canvas_coords)
                     warp_input_pts = np.float32(warp_input_pts)
-                    # warp_input_pts = np.array([np.float32(coord) for coord in warp_input_pts])
-
-
 
                 elif retval:
                     frame = cv2.drawFrameAxes(frame, self.mtx, self.dist, rvec, tvec, 0.1)
@@ -873,18 +923,16 @@ class OCR_GUI:
             self.rectified_frame = cv2.warpPerspective(frame,M,(self.new_width, self.new_height),flags=cv2.INTER_CUBIC)
             # frame_height, frame_width = frame.shape[:2]
 
-            # Calculate new image dimensions while keeping original ratio
-            scale = min(self.canvas_max_width / self.new_width, self.canvas_max_height / self.new_height)
-            self.new_canvas_width = int(self.new_width*scale)
-            self.new_canvas_height = int(self.new_height*scale)
+            self.new_canvas_width, self.new_canvas_height = resize_with_ratio(self.canvas_max_width, self.canvas_max_height, self.new_width, self.new_height)
 
             # Convert to RGB format
-            self.rectified_frame = cv2.cvtColor(self.rectified_frame, cv2.COLOR_BGR2RGB)
-            frame = self.rectified_frame
+            frame = copy.copy(self.rectified_frame)
         
         else:
+
+            self.new_canvas_width, self.new_canvas_height = resize_with_ratio(self.canvas_max_width, self.canvas_max_height, width, height)
+            
             self.rectified_frame = None
-            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
         # Resize image with new dimensions
         resized_frame = cv2.resize(frame, (self.new_canvas_width, self.new_canvas_height), interpolation=cv2.INTER_AREA)
@@ -998,6 +1046,9 @@ class OCR_GUI:
 
         ret, frame = self.get_frame()
 
+        # height, width = frame.shape[:2]
+        # print(f"Indic surface frame resolution {width}x{height}")
+
         if not ret:
             messagebox.showerror("Error", "No image could be read from the camera")
             return
@@ -1010,7 +1061,7 @@ class OCR_GUI:
         # frame = frame[y:y+h, x:x+w]
 
         aruco_dict = cv2.aruco.getPredefinedDictionary(ARUCO_DICT[self.aruco_dropdown.get()])
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        gray = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
         corners, ids, rejectedImgPoints = cv2.aruco.detectMarkers(gray, aruco_dict)
 
         board = aruco.CharucoBoard((self.charuco_width, self.charuco_height), self.square_size, self.aruco_size, aruco_dict)
@@ -1019,16 +1070,15 @@ class OCR_GUI:
         if np.all(ids is not None):
             charucoretval, charucoCorners, charucoIds = aruco.interpolateCornersCharuco(corners, ids, gray, board)
             frame = aruco.drawDetectedCornersCharuco(frame, charucoCorners, charucoIds, (0,255,0))
-            self.retval, self.rvec, self.tvec = aruco.estimatePoseCharucoBoard(charucoCorners, charucoIds, board, self.mtx, self.dist, np.zeros((3, 1)), np.zeros((3, 1)))
+            self.retval, rvec, tvec = aruco.estimatePoseCharucoBoard(charucoCorners, charucoIds, board, self.mtx, self.dist, np.zeros((3, 1)), np.zeros((3, 1)))
 
             if self.retval == True:
+                self.rvec = rvec
+                self.tvec = tvec
                 frame = cv2.drawFrameAxes(frame, self.mtx, self.dist, self.rvec, self.tvec, 0.1)
 
                 if self.display_surface_on:
                     self.display_surface()
-        
-        # Convert the frame to PIL Image format
-        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
         # Undistort image
         height,  width = frame.shape[:2]
@@ -1181,8 +1231,8 @@ class OCR_GUI:
     
     def lines_intersection(self, p1, p2, q1, q2):
         """
-        Given two lines, each represented by a pair of 3D points, compute their
-        intersection point.
+        Given two lines, each represented by a pair of 3D points, compute the coordinates 
+        of the middle point of the shortest segment linking the two lines.
         """
 
         # Calculate direction vectors for each line
@@ -1222,11 +1272,19 @@ class OCR_GUI:
 
         return pixel_coords
 
+def save_frames_to_avi(frames):
 
+    print(f"Frames in video: {len(frames)}")
+    # Define the codec and create a VideoWriter object
+    # fourcc = cv2.VideoWriter_fourcc(*'XVID')
+    video_out = cv2.VideoWriter('roi_video.avi', cv2.VideoWriter_fourcc('M','J','P','G'), 1.0, (frames[0].shape[1], frames[0].shape[0]))
 
+    # Write each frame to the video
+    for frame in frames:
+        video_out.write(frame)
 
-
-
+    # Release the video writer
+    video_out.release()
 
 def resize_with_ratio(max_width, max_height, width, height):
 
@@ -1257,136 +1315,3 @@ root.bind('<Escape>', lambda e: root.quit())
 root.geometry = ("1080x720")
 gui = OCR_GUI(root)
 root.mainloop()
-
-
-
-
-
-# def estimate_3d_coordinates(points, num_iterations=100, sample_size=3, threshold=0.1):
-#     best_model = None
-#     best_inliers = []
-    
-#     for _ in range(num_iterations):
-#         # Randomly select a minimal sample
-#         sample_indices = np.random.choice(len(points), size=sample_size, replace=False)
-#         sample_points = points[sample_indices]
-        
-#         # Fit a model (e.g., plane or sphere) to the sample points
-        
-#         # Evaluate the model and find inliers
-#         residuals = calculate_residuals(points, sample_points, best_model)
-#         inliers = np.where(residuals < threshold)[0]
-        
-#         # Check if this model has more inliers than the previous best model
-#         if len(inliers) > len(best_inliers):
-#             best_model = fit_model(points[inliers])
-#             best_inliers = inliers
-            
-#     # Refit the model using all inliers
-#     final_model = fit_model(points[best_inliers])
-    
-#     # Return the estimated 3D coordinates
-#     estimated_coordinates = least_squares_estimation(points[best_inliers], final_model)
-#     print(np.shape(estimated_coordinates))
-    
-#     return estimated_coordinates
-
-# def calculate_residuals(points, sample_points, model):
-#     # Calculate residuals between the model and all points
-#     residuals = np.abs(distance_to_model(points, sample_points, model))
-#     return residuals
-
-# def fit_model(data):
-#     """Fits a line model to the given 2D data points using least squares."""
-#     x = data[:, 0]
-#     y = data[:, 1]
-#     A = np.vstack([x, np.ones_like(x)]).T
-#     m, c = np.linalg.lstsq(A, y, rcond=None)[0]
-#     return m, c
-
-# def distance_to_model(data, model):
-#     """Calculates the perpendicular distance from each data point to the line model."""
-#     m, c = model
-#     x = data[:, 0]
-#     y = data[:, 1]
-#     distances = np.abs(m * x - y + c) / np.sqrt(m**2 + 1)
-#     return distances
-
-# def least_squares_estimation(data, num_iterations, threshold):
-#     """Performs RANSAC least squares estimation to robustly fit a line model to the data."""
-#     best_model = None
-#     best_inliers = None
-#     best_num_inliers = 0
-
-#     for i in range(num_iterations):
-#         # Randomly sample two points from the data
-#         sample_indices = np.random.choice(data.shape[0], 2, replace=False)
-#         sample = data[sample_indices]
-
-#         # Fit a model to the sampled points
-#         model = fit_model(sample)
-
-#         # Calculate the distances from all points to the model
-#         distances = distance_to_model(data, model)
-
-#         # Count the number of inliers (points within the threshold)
-#         inliers = distances < threshold
-#         num_inliers = np.count_nonzero(inliers)
-
-#         # Check if this model is the best one so far
-#         if num_inliers > best_num_inliers:
-#             best_model = model
-#             best_inliers = inliers
-#             best_num_inliers = num_inliers
-
-#     # Refit the model using all the inliers
-#     inlier_points = data[best_inliers]
-#     best_model = fit_model(inlier_points)
-
-#     return best_model
-
-# def least_squares_average(points, n_outliers=0.2, max_iterations=100, tolerance=1e-6):
-#     """Computes the least squares estimate of the average point for a list of 3D points.
-
-#     Args:
-#         points: A list of 3D points.
-#         n_outliers: The percentage of distances to discard as outliers.
-#         max_iterations: The maximum number of iterations to perform.
-#         tolerance: The tolerance for convergence.
-
-#     Returns:
-#         The least squares estimate of the average point.
-#     """
-#     # Convert points to a numpy array for easier computation.
-#     points = np.array(points)
-
-#     # Choose an initial estimate for the average point.
-#     average = np.mean(points, axis=0)
-
-#     for iteration in range(max_iterations):
-#         # Compute the distance between each point and the current estimate.
-#         distances = np.linalg.norm(points - average, axis=1)
-
-#         # Sort the distances in ascending order.
-#         sorted_distances = np.sort(distances)
-
-#         # Discard the top n percent of the distances as outliers.
-#         n = int(n_outliers * len(points))
-#         inliers = sorted_distances[n:]
-
-#         # Compute the least squares estimate of the average point using the remaining distances.
-#         if len(inliers) == 0:
-#             # All points were outliers, so we can't compute a least squares estimate.
-#             break
-
-#         new_average = np.mean(points[distances <= inliers[-1]], axis=0)
-
-#         # Check for convergence.
-#         if np.allclose(average, new_average, atol=tolerance):
-#             break
-
-#         average = new_average
-
-#     return average
-
-
