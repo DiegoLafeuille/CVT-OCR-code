@@ -45,7 +45,7 @@ def ocr_on_roi(frame, roi_list, cols):
         
     # Write the extracted text to the csv file
     with open('results.csv', mode='a', newline='') as file:
-        writer = csv.DictWriter(file, fieldnames=cols)
+        writer = csv.DictWriter(file, fieldnames=cols, quoting=csv.QUOTE_ALL)
         writer.writerow({cols[i]: texts[i] for i in range(len(texts))})
 
 def easyocr_ocr(img, only_nums):
@@ -76,7 +76,7 @@ def easyocr_ocr(img, only_nums):
     
 def tesseract_ocr(img, only_nums):
     if only_nums:
-        text = pytesseract.image_to_string(img, lang="lets", config="--psm 7 -c tessedit_char_whitelist=+-.0123456789")
+        text = pytesseract.image_to_string(img, lang="lets", config="--psm 7 -c tessedit_char_whitelist=+-,.0123456789")
     else:
         text = pytesseract.image_to_string(img, lang="lets", config="--psm 7")
     return text if text else "No text recognized"
