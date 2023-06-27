@@ -54,7 +54,7 @@ def easyocr_ocr(img, only_nums):
         
         texts = easyocr_reader.readtext(
             img, 
-            allowlist = '0123456789-+.,', 
+            allowlist = '0123456789-+.', 
             link_threshold=0.99, 
             detail = 0, 
             width_ths = 0.99,
