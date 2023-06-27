@@ -90,6 +90,10 @@ class OCR_GUI:
         self.four_markers_radio_btn.grid(row=1, column=2, padx=(5,30), pady=(5,10))
         self.surface_line_eqs = []
 
+        # One marker method parameter initialisation
+        self.last_rvec = None
+        self.last_tvec = None
+
         # Image canvas
         self.canvas_max_width = 750
         self.canvas_max_height = 600
@@ -613,6 +617,9 @@ class OCR_GUI:
         if save_video:
             save_frames_to_avi(stacked_roi_images)
 
+
+    ######################## ROI list functions ########################
+
     def create_rois(self):
 
         # Create list of ROIs
@@ -805,6 +812,9 @@ class OCR_GUI:
         # Repeat after an interval to capture continuously
         self.video_label.after(50, self.show_camera)
  
+
+    ################## Rectified perspective functions ##################
+
     def show_rectified_camera(self):
                 
         ret, frame = self.get_frame()
@@ -830,31 +840,43 @@ class OCR_GUI:
 
             board = aruco.CharucoBoard((self.charuco_width, self.charuco_height), self.square_size, self.aruco_size, aruco_dict)
             aruco.refineDetectedMarkers(gray, board, corners, self.ids, rejectedImgPoints)
-            
+            retval = False
+
             # If there are markers found by detector
             if np.all(self.ids is not None):
-                
                 charucoretval, charucoCorners, charucoIds = aruco.interpolateCornersCharuco(corners, self.ids, gray, board)
                 frame = aruco.drawDetectedCornersCharuco(frame, charucoCorners, charucoIds, (0,255,0))
                 retval, rvec, tvec = aruco.estimatePoseCharucoBoard(charucoCorners, charucoIds, board, self.mtx, self.dist, np.zeros((3, 1)), np.zeros((3, 1)))
-                
-                if retval and self.saved_surfaces_counter >= 2:
-
-                    self.surface_img_coords = [self.find_img_coords(point_coords, rvec, tvec) for point_coords in self.surface_world_coords]
-
-                    #  Updating detected dimensions of object every 50 consecutive frames where surface is found
-                    if self.frame_counter % 50 == 0:
-                        self.new_width, self.new_height = self.get_surface_dims_one_marker()
-                    self.frame_counter += 1
-                    
-                    for point in self.surface_img_coords:
-                        point_canvas_coords = [int(point[0]), int(point[1])]
-                        warp_input_pts.append(point_canvas_coords)
-                    warp_input_pts = np.float32(warp_input_pts)
-
-                elif retval:
-                    frame = cv2.drawFrameAxes(frame, self.mtx, self.dist, rvec, tvec, 0.1)
+                        
+            # Initial pose estimation
+            if retval and self.last_rvec is None and self.last_tvec is None:
+                self.last_rvec = rvec
+                self.last_tvec = tvec
             
+            # Update pose estimation (0.8 * new + 0.2 * old) -> smoother transitions
+            elif retval:
+                self.last_rvec = 0.8 * rvec + 0.2 * self.last_rvec
+                self.last_tvec = 0.8 * tvec + 0.2 * self.last_tvec
+            
+            # If surface world coordinates have been found
+            if self.saved_surfaces_counter >= 2:
+                
+                # Get surface image coordinates
+                self.surface_img_coords = [self.find_img_coords(point_coords, self.last_rvec, self.last_tvec) for point_coords in self.surface_world_coords]
+
+                #  Updating detected dimensions of object every 50 consecutive frames where surface is found
+                if self.frame_counter % 50 == 0:
+                    self.new_width, self.new_height = self.get_surface_dims_one_marker()
+                self.frame_counter += 1
+                
+                for point in self.surface_img_coords:
+                    point_canvas_coords = [int(point[0]), int(point[1])]
+                    warp_input_pts.append(point_canvas_coords)
+                warp_input_pts = np.float32(warp_input_pts)
+
+            elif self.last_rvec is not None and self.last_tvec is not None:
+                frame = cv2.drawFrameAxes(frame, self.mtx, self.dist, self.last_rvec, self.last_tvec, 0.1)
+        
 
         # Warp with four markers method
         elif method == "four_markers":
@@ -999,10 +1021,11 @@ class OCR_GUI:
         return new_width, new_height
 
 
-    #################### Functions for one marker method ####################
+    #################### One marker method functions ####################
 
     def indicate_surface_window_init(self):
 
+        # Create new window
         self.indic_surface_window = tk.Toplevel(self.master)
         self.indic_surface_window.title("Indicate Target Surface")
 
@@ -1011,7 +1034,7 @@ class OCR_GUI:
         self.saved_coords_label = ttk.Label(self.indic_surface_window, text=f"Number of saved surfaces: {self.saved_surfaces_counter} / 2")
         self.saved_coords_label.pack()
 
-        # Create canvas to display video feed
+        # Create canvas to display video feed and to draw on
         _, frame = self.get_frame()
         height, width = frame.shape[:2]
         max_width = 1280
@@ -1023,8 +1046,6 @@ class OCR_GUI:
         self.height_ratio = height / resized_height
         self.indic_surf_canvas = tk.Canvas(self.indic_surface_window, width=max_height,
                                 height=resized_height, bd=2, bg="grey")
-        
-        # print("in init: ", self.indic_surf_canvas.winfo_width(), self.indic_surf_canvas.winfo_height())
         self.indic_surf_canvas_image = self.indic_surf_canvas.create_image(0, 0, anchor=tk.NW)
         self.indic_surf_canvas.pack()
         self.indic_surf_canvas.bind("<Button-1>", self.draw_on_press)
@@ -1048,6 +1069,9 @@ class OCR_GUI:
         self.coords = []
         self.point_coords = []
         self.surface_line_eqs = []
+        self.indic_last_rvec = None
+        self.indic_last_tvec = None
+        self.pose_estimated = False
 
         self.update_indic_surf_canvas()
 
@@ -1056,20 +1080,12 @@ class OCR_GUI:
         self.indic_surface_window.update()
 
         ret, frame = self.get_frame()
-
-        # height, width = frame.shape[:2]
+        height, width = frame.shape[:2]
         # print(f"Indic surface frame resolution {width}x{height}")
 
         if not ret:
             messagebox.showerror("Error", "No image could be read from the camera")
             return
-        
-        # # Undistort image
-        # h,  w = frame.shape[:2]
-        # newcameramtx, roi = cv2.getOptimalNewCameraMatrix(self.mtx, self.dist, (w,h), 1, (w,h))
-        # frame = cv2.undistort(frame, self.mtx, self.dist, None, newcameramtx)
-        # x, y, w, h = roi
-        # frame = frame[y:y+h, x:x+w]
 
         aruco_dict = cv2.aruco.getPredefinedDictionary(ARUCO_DICT[self.aruco_dropdown.get()])
         gray = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
@@ -1077,26 +1093,36 @@ class OCR_GUI:
 
         board = aruco.CharucoBoard((self.charuco_width, self.charuco_height), self.square_size, self.aruco_size, aruco_dict)
         aruco.refineDetectedMarkers(gray, board, corners, ids, rejectedImgPoints)
+        self.retval = False
 
         if np.all(ids is not None):
             charucoretval, charucoCorners, charucoIds = aruco.interpolateCornersCharuco(corners, ids, gray, board)
             frame = aruco.drawDetectedCornersCharuco(frame, charucoCorners, charucoIds, (0,255,0))
             self.retval, rvec, tvec = aruco.estimatePoseCharucoBoard(charucoCorners, charucoIds, board, self.mtx, self.dist, np.zeros((3, 1)), np.zeros((3, 1)))
+        
+        # Initial pose estimation
+        if self.retval and self.indic_last_rvec is None and self.indic_last_tvec is None:
+            self.indic_last_rvec = rvec
+            self.indic_last_tvec = tvec
+            self.pose_estimated = True
+            print("Initial pose estimation")
 
-            if self.retval == True:
-                self.rvec = rvec
-                self.tvec = tvec
-                frame = cv2.drawFrameAxes(frame, self.mtx, self.dist, self.rvec, self.tvec, 0.1)
+        # Update pose estimation (0.8 * new + 0.2 * old) -> smoother transitions
+        elif self.retval:
+            self.indic_last_rvec = 0.8 * rvec + 0.2 * self.indic_last_rvec
+            self.indic_last_tvec = 0.8 * tvec + 0.2 * self.indic_last_tvec
+        
+        if self.indic_last_rvec is not None and self.indic_last_tvec is not None:
+            frame = cv2.drawFrameAxes(frame, self.mtx, self.dist, self.indic_last_rvec, self.indic_last_tvec, 0.1)
 
-                if self.display_surface_on:
-                    self.display_surface()
+        if self.display_surface_on:
+            self.display_surface()
 
-        # Undistort image
-        height,  width = frame.shape[:2]
-        newcameramtx, roi = cv2.getOptimalNewCameraMatrix(self.mtx, self.dist, (width,height), 1, (width,height))
-        frame = cv2.undistort(frame, self.mtx, self.dist, None, newcameramtx)
-        x, y, width, height = roi
-        frame = frame[y:y+height, x:x+width]
+        # # Undistort image
+        # newcameramtx, roi = cv2.getOptimalNewCameraMatrix(self.mtx, self.dist, (width,height), 1, (width,height))
+        # frame = cv2.undistort(frame, self.mtx, self.dist, None, newcameramtx)
+        # x, y, width, height = roi
+        # frame = frame[y:y+height, x:x+width]
 
         max_width = 1280
         max_height = 720
@@ -1113,10 +1139,11 @@ class OCR_GUI:
 
     def draw_on_press(self, event):
         
-        # Restart new shape if it was already finished
+        # Delete new shape if it was already finished
         if len(self.coords) == 4:
             self.coords = []
             self.indic_surf_canvas.delete(self.finished_shape)
+            return
 
         self.coords.append((event.x, event.y))
         
@@ -1137,20 +1164,37 @@ class OCR_GUI:
 
     def save_coords(self):
 
+        print(f"retval at confirmation: {self.retval}")
+
+        # Check that the surface rectangle is finished (4 corners)
         if len(self.coords) != 4:
             messagebox.showerror("Error", "Surface should have four corners", parent= self.indic_surface_window)
             return
         
-        if not self.retval:
-            messagebox.showerror("Error", "Pose estimation of charuco board could not be calculated", parent= self.indic_surface_window)
+        # Check if a charuco pose has ever been estimated
+        elif not self.pose_estimated:
+            messagebox.showerror("Error", "No pose estimation for a Charuco board could be calculated", parent= self.indic_surface_window)
             return
+
+        # If pose could not be estimated in this frame, give option to use last estimated pose
+        elif not self.retval:
+            last_pose_accepted = messagebox.askyesno(
+                "Accept last pose estimation?", 
+                "Warning: No Charuco pose estimation could be calculated for this frame.\n" + 
+                "Would you like to use the last pose estimation calculated?\n" +
+                "If so, make sure that the last position of the Charuco corresponds to the displayed pose."
+            )
+            if not last_pose_accepted:
+                return
         
+        # Update displayed number of saved surfaces
         self.saved_surfaces_counter += 1
         self.saved_coords_label.config(text=f"Number of saved surfaces: {self.saved_surfaces_counter} / 2")
         
         # Transform the coordinates of the canvas pixel to the original size of the frame
         self.coords = [(int(x * self.width_ratio), int(y * self.height_ratio)) for x,y in self.coords]
 
+        # Store line equeations for each point
         self.line_eq = [self.get_line_equation(point) for point in self.coords]
         self.surface_line_eqs.append(self.line_eq)
         
@@ -1166,18 +1210,18 @@ class OCR_GUI:
 
         self.indic_surf_canvas.delete(self.finished_shape)
         self.coords = []
-     
+
     def get_line_equation(self, point):
 
         self.s = symbols('s')
         x = np.array([[point[0]], [point[1]], [1]])
 
-        rot_mat = cv2.Rodrigues(self.rvec)[0]
+        rot_mat = cv2.Rodrigues(self.indic_last_rvec)[0]
         inv_rodr = np.linalg.inv(rot_mat)
         
         inv_mtx = np.linalg.inv(self.mtx)
 
-        line_equation = inv_rodr @ ((inv_mtx @ (self.s * x)) - self.tvec.reshape((3,1)))
+        line_equation = inv_rodr @ ((inv_mtx @ (self.s * x)) - self.indic_last_tvec.reshape((3,1)))
         return line_equation
 
     def toggle_display_surface(self):
@@ -1197,7 +1241,7 @@ class OCR_GUI:
         if self.surface_polygon is not None:
             self.indic_surf_canvas.delete(self.surface_polygon)
 
-        self.surface_img_coords = [self.find_img_coords(point_coords, self.rvec, self.tvec) for point_coords in self.surface_world_coords]
+        self.surface_img_coords = [self.find_img_coords(point_coords, self.indic_last_rvec, self.indic_last_tvec) for point_coords in self.surface_world_coords]
         
         # Transform coordinates of the point for the canvas scale
         surface_canvas_coords = []
