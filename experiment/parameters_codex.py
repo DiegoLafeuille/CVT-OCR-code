@@ -8,10 +8,11 @@ fonts = {
     "4": "Let's Go Digital"
     }
 
+# mm sizes for PC-LEN-E580
 sizes = {
-    "0": "15 mm",
-    "1": "10 m",
-    "2": "5 mm"
+    "0": "Big", # 6 mm
+    "1": "Medium", # 4 m
+    "2": "Small" # 2 mm
     }
 
 colors = {
@@ -31,5 +32,6 @@ def repr(image_code):
         f"The code {image_code} represents a number with the following attributes:\n",
         f"Font is {font}\n",
         f"Size is {size}\n",
-        f"Font color is {color} background\n",
-          )
+        f"Font color is {color} background\n"
+        )
+

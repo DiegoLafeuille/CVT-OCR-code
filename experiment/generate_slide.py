@@ -5,12 +5,19 @@ import pandas as pd
 import copy
 
 
-
 def generate_number_image(number, font_path, font_size, background_color, text_color):
     
-    # Create a new image with the specified background color
-    image_size = (500, 300)
-    image = Image.new('RGB', image_size, background_color)
+    # Create a new image
+    image_size = (600, 700)
+    image = Image.new('RGB', image_size)
+    
+    # Fill the top 200 pixels with the specified background color for the number
+    top_background = Image.new('RGB', (image_size[0], 200), background_color)
+    image.paste(top_background, (0, 0))
+    
+    # Fill the bottom 500 pixels with white background for the Charuco board
+    bottom_background = Image.new('RGB', (image_size[0], 500), (255, 255, 255))
+    image.paste(bottom_background, (0, 200))
     
     # Load a font
     font = ImageFont.truetype(font_path, font_size)
@@ -18,14 +25,25 @@ def generate_number_image(number, font_path, font_size, background_color, text_c
     # Calculate the position to center the number
     draw = ImageDraw.Draw(image)
     text = str(number)
-    text_bbox = draw.textbbox((0, 0), text, font=font)
-    text_width = text_bbox[2] - text_bbox[0]
-    text_height = text_bbox[3] - text_bbox[1]
-    x = (image_size[0] - text_width) // 2
-    y = (image_size[1] - text_height) // 2
+    _, _, w, h  = draw.textbbox((0, 0), text, font=font)
+    x = (image_size[0] - w) // 2
+    y = 100 - h // 2
     
     # Draw the number on the image
     draw.text((x, y), str(number), font=font, fill=text_color)
+
+    # Load the charuco board image
+    charuco_board_path = "aruco_patterns/charuco_boards/charuco_4x4_DICT_4X4_1000_sl20_ml14.png"
+    charuco_board = Image.open(charuco_board_path)
+    charuco_board = charuco_board.resize((400, 400))
+    
+    # Calculate the position to place the charuco board
+    board_width, board_height = charuco_board.size
+    board_x = (image_size[0] - board_width) // 2
+    board_y = 450 - board_height // 2
+    
+    # Paste the charuco board at the bottom and centered
+    image.paste(charuco_board, (board_x, board_y))
     
     return image
 
@@ -54,11 +72,11 @@ def main():
 
                 # Size parameter
                 if size == "0":
-                    font_size = 70
+                    font_size = 45
                 elif size == "1":
-                    font_size = 50
-                elif size == "2":
                     font_size = 30
+                elif size == "2":
+                    font_size = 15
 
                 # Create a number made up of digits 0 to 9 in a random number
                 shuffled_digits = copy.copy(digits)
