@@ -1105,7 +1105,6 @@ class OCR_GUI:
             self.indic_last_rvec = rvec
             self.indic_last_tvec = tvec
             self.pose_estimated = True
-            print("Initial pose estimation")
 
         # Update pose estimation (0.8 * new + 0.2 * old) -> smoother transitions
         elif self.retval:
@@ -1163,8 +1162,6 @@ class OCR_GUI:
                                                     outline='red', width=2)
 
     def save_coords(self):
-
-        print(f"retval at confirmation: {self.retval}")
 
         # Check that the surface rectangle is finished (4 corners)
         if len(self.coords) != 4:
@@ -1392,7 +1389,8 @@ class OCR_GUI:
             "Calibration file": self.selected_camera,
             "Camera input": self.selected_camera_input,
             "Aruco dictionary": self.selected_aruco,
-            "Square size": self.aruco_size,
+            "Aruco size": self.aruco_size,
+            "Square size": self.square_size,
             "Charuco width": self.charuco_width,
             "Charuco heigt": self.charuco_height,
             "ROI list": self.create_rois(),
