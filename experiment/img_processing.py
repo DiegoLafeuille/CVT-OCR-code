@@ -39,35 +39,41 @@ def default_pipeline(image):
 
 def ld_7_seg_pipeline(image):
     '''Image processing pipeline for seven segments displays with light font on dark background.'''
-    
-    # Tranform image to grayscale
-    gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
 
-    # Blur to remove noise
-    blur = cv2.GaussianBlur(gray,(7,7),0)
+    img = copy.copy(image)
+    img = np.max(img, axis=2)
 
-    # Initial threshholding
-    thresh = cv2.threshold(blur, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)[1]
+    # # Tranform image to grayscale
+    # gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+
+    # # Blur to remove noise
+    # blur = cv2.GaussianBlur(gray,(7,7),0)
+
+    # # Initial threshholding
+    # thresh = cv2.threshold(blur, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)[1]
 
     # Turn image back into RGB to have the right shape
-    processed_img = cv2.cvtColor(thresh, cv2.COLOR_GRAY2RGB)
+    processed_img = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
 
     return processed_img
 
 def dl_7_seg_pipeline(image):
     '''Image processing pipeline for seven segments displays with dark font on light background.'''
     
-    # Tranform image to grayscale
-    gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+    img = copy.copy(image)
+    img = np.max(img, axis=2)
 
-    # Blur to remove noise
-    blur = cv2.GaussianBlur(gray,(7,7),0)
+    # # Tranform image to grayscale
+    # gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
 
-    # Initial threshholding
-    thresh = cv2.threshold(blur, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]
+    # # Blur to remove noise
+    # blur = cv2.GaussianBlur(gray,(7,7),0)
+
+    # # Initial threshholding
+    # thresh = cv2.threshold(blur, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]
 
     # Turn image back into RGB to have the right shape
-    processed_img = cv2.cvtColor(thresh, cv2.COLOR_GRAY2RGB)
+    processed_img = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
 
     return processed_img
 
