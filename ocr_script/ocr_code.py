@@ -52,23 +52,32 @@ def easyocr_ocr(img, only_nums):
     
     if only_nums:
         
-        texts = easyocr_reader.readtext(
+        # texts = easyocr_reader.readtext(
+        #     img, 
+        #     allowlist = '0123456789-+.', 
+        #     link_threshold=0.99, 
+        #     detail = 0, 
+        #     width_ths = 0.99,
+        #     height_ths = 0.99,
+        # )
+        texts = easyocr_reader.recognize(
             img, 
             allowlist = '0123456789-+.', 
-            link_threshold=0.99, 
             detail = 0, 
-            width_ths = 0.99,
-            height_ths = 0.99,
         )
     
     else:
         
+        # texts = easyocr_reader.readtext(
+        #     img, 
+        #     link_threshold=0.99, 
+        #     detail = 0, 
+        #     width_ths = 0.99,
+        #     height_ths = 0.99,
+        # )
         texts = easyocr_reader.readtext(
             img, 
-            link_threshold=0.99, 
             detail = 0, 
-            width_ths = 0.99,
-            height_ths = 0.99,
         )
         
     text = ''.join(texts)
