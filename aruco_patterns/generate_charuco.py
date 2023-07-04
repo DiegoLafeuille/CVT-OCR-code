@@ -42,7 +42,7 @@ def main():
                     default=20,
                     help="Square length in mm")
     parser.add_argument("-ml", "--marker-length", type=int,
-                    default=16,
+                    default=14,
                     help="Marker length in mm")
     args = parser.parse_args()
 

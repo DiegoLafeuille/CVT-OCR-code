@@ -4,6 +4,8 @@ import numpy
 import cv2
 
 
+# Set lens name
+lens = "daheng_12mm"
 
 # create a device manager
 device_manager = gx.DeviceManager()
@@ -24,7 +26,10 @@ if cam.PixelColorFilter.is_implemented() is False:
 cam.TriggerMode.set(gx.GxSwitchEntry.OFF)
 
 # set exposure
-cam.ExposureTime.set(100000.0)
+cam.ExposureTime.set(150000.0)
+
+# set auto white balance
+cam.BalanceWhiteAuto.set(1)
 
 # set gain
 cam.Gain.set(10.0)
@@ -62,6 +67,9 @@ print(f"{width}x{height}")
 # Initialize a variable to store the image
 img_counter = 0
 
+cv2.namedWindow("Camera", cv2.WINDOW_NORMAL)
+
+
 while True:
     # Read a frame from the camera
     raw_image = cam.data_stream[0].get_image()
@@ -85,23 +93,25 @@ while True:
     frame = cv2.cvtColor(numpy.asarray(numpy_image),cv2.COLOR_BGR2RGB)
     
     # Show the frame in a window
-    resized_frame = cv2.resize(frame,(int(width/5), int(height/5)), interpolation=cv2.INTER_AREA)
-    cv2.imshow("Camera", resized_frame)
+    # resized_frame = cv2.resize(frame,(int(width/5), int(height/5)), interpolation=cv2.INTER_AREA)
+    cv2.imshow("Camera", frame)
+
+    key = cv2.waitKey(1)
     
     # Check if the user pressed the space bar
-    if cv2.waitKey(1) == ord(' '):
+    if key == ord(' '):
         # Increment the image counter
         img_counter += 1
         
         # Save the image to disk
         filename = f"image_{img_counter}.png"
-        cv2.imwrite(filename, frame)
+        cv2.imwrite("cam_calibration/cameras/" + lens + "/" + filename, frame)
         
         # Print a message to the console
         print(f"{filename} saved!")
         
-    # Check if the user pressed the "q" key to quit
-    if cv2.waitKey(1) == ord('q'):
+    # Check if the user pressed the escape key
+    elif key == 27:
         break
 
 # stop data acquisition

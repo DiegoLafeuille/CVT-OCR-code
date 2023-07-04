@@ -6,7 +6,7 @@ import cv2
 from cv2 import aruco
 import gxipy as gx
 from PIL import Image, ImageTk
-from ocr_code import ocr_on_roi
+from ocr_code import ocr_on_roi, crop_roi
 import img_processing
 import ocr_code
 import pickle
@@ -17,6 +17,7 @@ from sympy import symbols, Eq
 import threading
 import copy
 import re
+import os
 
 
 # Names of each possible ArUco tag OpenCV supports
@@ -138,7 +139,8 @@ class OCR_GUI:
         self.cam = None
         self.cam_label = ttk.Label(self.parameters_frame, text="Calibration folder:")
         self.cam_label.grid(row=1, column=0, padx=5, pady=5)
-        self.camera_names = ["daheng_6mm", "daheng_3mm", "pc08_webcam", "jans_webcam", "diegos_phone", "diegos_iriun", "jans_webcam_charuco"]
+        
+        self.camera_names = [entry for entry in os.listdir("cam_calibration/cameras") if os.path.isdir(os.path.join("cam_calibration/cameras", entry))]
         self.camera_name_dropdown = ttk.Combobox(self.parameters_frame, value=self.camera_names)
         self.camera_name_dropdown.current(0)
         self.selected_camera = self.camera_name_dropdown.get()
@@ -333,7 +335,7 @@ class OCR_GUI:
                 self.cam = self.device_manager.open_device_by_sn(self.camera_input_dropdown.get())
                 
                 self.cam.TriggerMode.set(gx.GxSwitchEntry.OFF)
-                self.cam.ExposureTime.set(100000.0)
+                self.cam.ExposureTime.set(80000.0)
                 self.cam.Gain.set(10.0)
 
                 # get param of improving image quality
@@ -574,37 +576,45 @@ class OCR_GUI:
                 # print("process_webcam_feed time = ", time.time() - self.last_call_time)
 
                 roi_images = []
+                cropped_rois = []
+                final_rois = []
                 max_width = 0
 
-                # Find the maximum height among the ROI images
+                # Find the maximum width among the ROI images
                 for roi in roi_list:
                     x1 = min(roi['ROI'][0],roi['ROI'][2])
                     x2 = max(roi['ROI'][0],roi['ROI'][2])
                     y1 = min(roi['ROI'][1],roi['ROI'][3])
                     y2 = max(roi['ROI'][1],roi['ROI'][3])
                     roi_img = frame[y1:y2, x1:x2]
+                    roi_images.append(roi_img)
                     roi_width = roi_img.shape[1]
                     max_width = max(max_width, roi_width)
 
-                for roi in roi_list:
-                    x1 = min(roi['ROI'][0],roi['ROI'][2])
-                    x2 = max(roi['ROI'][0],roi['ROI'][2])
-                    y1 = min(roi['ROI'][1],roi['ROI'][3])
-                    y2 = max(roi['ROI'][1],roi['ROI'][3])
-                    roi_img = frame[y1:y2, x1:x2]
+                for roi_img, roi in zip(roi_images, roi_list):
+                    cropped_roi, roi_img = crop_roi(roi_img)
+                    cropped_roi = roi['font'].proc_pipeline(cropped_roi)
+                    if cropped_roi.shape[2] < 3:
+                        cropped_roi = cv2.cvtColor(cropped_roi, cv2.COLOR_GRAY2RGB)
+                    cropped_rois.append(cropped_roi)
 
-                    roi_img = roi['font'].proc_pipeline(roi_img)
-                    if len(roi_img.shape) < 3:
-                        roi_img = cv2.cvtColor(roi_img, cv2.COLOR_GRAY2RGB)
+                    # Give border to original roi if not biggest roi width
                     roi_width = roi_img.shape[1]
                     if roi_width < max_width:
                         border_right = (max_width - roi_width) // 2
                         border_left = max_width - roi_width - border_right
                         roi_img = cv2.copyMakeBorder(roi_img, 0, 0, border_left, border_right, cv2.BORDER_CONSTANT, value=(0, 0, 0))
-                    roi_images.append(roi_img)
+                    final_rois.append(roi_img)
+
+                    # Give border to cropped roi to match biggest roi width
+                    cropped_width = cropped_roi.shape[1]
+                    border_right = (max_width - cropped_width) // 2
+                    border_left = max_width - cropped_width - border_right
+                    cropped_roi = cv2.copyMakeBorder(cropped_roi, 0, 0, border_left, border_right, cv2.BORDER_CONSTANT, value=(0, 0, 0))
+                    final_rois.append(cropped_roi)
 
                 # Display ROIs in a new window
-                stacked_roi_img = cv2.vconcat(roi_images)
+                stacked_roi_img = cv2.vconcat(final_rois)
                 stacked_roi_img = cv2.cvtColor(stacked_roi_img, cv2.COLOR_RGB2BGR)
                 if save_video:
                     stacked_roi_images.append(stacked_roi_img)

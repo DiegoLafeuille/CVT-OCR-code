@@ -1,5 +1,4 @@
 import os
-import random
 import numpy as np
 import pickle
 import gxipy as gx
@@ -10,7 +9,7 @@ import pytesseract
 import datetime
 import json
 from tqdm import tqdm
-
+import argparse
 
 # Names of each possible ArUco tag OpenCV supports
 ARUCO_DICT = {
@@ -36,7 +35,6 @@ ARUCO_DICT = {
 	"DICT_APRILTAG_36h10": cv2.aruco.DICT_APRILTAG_36h10,
 	"DICT_APRILTAG_36h11": cv2.aruco.DICT_APRILTAG_36h11
 }
-
 
 def import_params(filename):
     '''Imports all necessary data to be able to run script to do the 
@@ -90,10 +88,10 @@ def update_cam_input(cam_input, cam_type, calib_w, calib_h):
             
             # set exposure time
             # cam.ExposureAuto.set(1)
-            cam.ExposureTime.set(100000.0)
+            cam.ExposureTime.set(80000.0)
             
-            # # set auto white balance
-            # cam.BalanceWhiteAuto.set(1)
+            # set auto white balance
+            cam.BalanceWhiteAuto.set(2)
 
             cam.Gain.set(10.0)
 
@@ -354,27 +352,83 @@ def get_roi(frame, code, roi_list):
 
     return roi_img
 
+def crop_roi(img, img_code):
+    
+    # Convert the image to grayscale
+    gray = np.max(img, axis=2)
+
+    # Apply thresholding to convert the image to binary, characters need to be white, background black
+    if img_code[2] == "1":
+        binary = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]
+    else:
+        binary = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)[1]
+    
+    # Apply morphological opening to remove spots due to noise
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (7,7))
+    opened = cv2.morphologyEx(binary, cv2.MORPH_OPEN, kernel)
+
+    # Find contours in the opened binary image
+    contours, _ = cv2.findContours(opened, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    # Combine all contours into a single contour
+    combined_contour = np.vstack(contours)
+
+    # Get the bounding rectangle of the combined contour
+    x, y, w, h = cv2.boundingRect(combined_contour)
+
+    # Add a margin
+    margin = 5
+    x = max(x - margin, 0)
+    y = max(y - margin, 0)
+    w = min(w + 2 * margin, img.shape[1])
+    h = min(h + 2 * margin, img.shape[0])
+
+    # Draw the bounding box on the image
+    image_with_box = np.copy(img)
+    cv2.rectangle(image_with_box, (x, y), (x + w, y + h), (0, 0, 255), 6)
+    
+    # Crop the image using the bounding rectangle
+    cropped_image = img[y:y+h, x:x+w]
+
+    return cropped_image, image_with_box
+
+def add_margins(max_width, img_list):
+    
+    result_images = []
+        
+    for img in img_list:
+        
+        # Get the original image width
+        width = img.shape[1]
+        
+        # Calculate the margin width
+        margin_width = max_width - width
+        
+        # Ensure margin width is positive
+        if margin_width < 0:
+            raise("Error: Cropped image bigger than original image")
+
+        # Calculate the left and right margins
+        left_margin = margin_width // 2
+        right_margin = margin_width - left_margin
+        
+        # Create a border around the image
+        bordered_img = cv2.copyMakeBorder(img, 0, 0, left_margin, right_margin, cv2.BORDER_CONSTANT)
+        
+        # Append the bordered image to the result list
+        result_images.append(bordered_img)
+
+    return result_images
+
 def process_img(img, code):
     
     # Get correct processing pipeline for conventional fonts and different colors
-    if code[0] != "4" and code[2] == "0":
-        process_pipeline = imgp.default_pipeline
-    elif code[0] != "4" and code[2] == "1":
-        process_pipeline = imgp.default_pipeline
-    elif code[0] != "4" and code[2] == "2":
-        process_pipeline = imgp.default_pipeline
-    elif code[0] != "4" and code[2] == "3":
+    if code[0] != "4":
         process_pipeline = imgp.default_pipeline
 
-    # Get correct processing pipeline for Let's-Go-Digital (7 segments) font and different colors
-    elif code[0] == "4" and code[2] == "0":
-        process_pipeline = imgp.dl_7_seg_pipeline
-    elif code[0] == "4" and code[2] == "1":
-        process_pipeline = imgp.ld_7_seg_pipeline
-    elif code[0] == "4" and code[2] == "2":
-        process_pipeline = imgp.dl_7_seg_pipeline
-    elif code[0] == "4" and code[2] == "3":
-        process_pipeline = imgp.dl_7_seg_pipeline
+    # Get correct processing pipeline for Let's-Go-Digital (7 segments)
+    elif code[0] == "4":
+        process_pipeline = imgp.seven_seg_pipeline
 
     return process_pipeline(img)
 
@@ -393,15 +447,18 @@ def call_ocr(img, code, reader):
         # )
         texts = reader.recognize(
             img, 
+            batch_size = 5,
             allowlist = '0123456789-+.', 
-            # link_threshold=0.99, 
             detail = 0, 
-            # width_ths = 0.99,
-            # height_ths = 0.99,
+            contrast_ths = 0.4,
         )
         text = ''.join(texts)
-    if code[0] == "4":
+    
+    else:
         text = pytesseract.image_to_string(img, lang="lets", config="--psm 7 -c tessedit_char_whitelist=+-.0123456789")
+        text = text.replace("\n", "")
+        text = text.replace(" ", "")
+
 
     return text
 
@@ -415,9 +472,31 @@ def close_cam(cam, cam_type):
         cam.release()
 
 
+# Argument parsing
+ap = argparse.ArgumentParser()
+ap.add_argument("-p", "--parameters", type=str,
+                default="control_exp_params",
+	            help="Pickle file containing GUI parameters for automated script")
+ap.add_argument("-d", "--distance", type=str,
+                default="50",
+                help="Distance from camera to screen")
+# ap.add_argument("-lu", "--luminosity", type=str,
+#                 default="100",
+#                 help="Screen luminosity [100%]")
+ap.add_argument("-li", "--lighting", type=str,
+                default="3",
+                help="Lighting conditions [1,2,3]")
+ap.add_argument("-ha", "--h_angle", type=str,
+                default="0",
+                help="Horizontal angle between screen and camera")
+ap.add_argument("-va", "--v_angle", type=str,
+                default="0",
+                help="Vertical angle between screen and camera")
+args = vars(ap.parse_args())
+
 
 def main():
-
+    
     # Start timer to time full experiment cycle duration
     start_time = datetime.datetime.now()
 
@@ -426,12 +505,22 @@ def main():
     show_frame = False
 
     # Get GUI parameters for automated script
-    filename = "controlled_experiment_params"
-    params = import_params(filename)
+    param_filepath = args["parameters"]
+    params = import_params(param_filepath)
 
     # Set calibration parameters
     calib_file = params["Calibration file"]
     mtx, dist, calib_w, calib_h = update_calibration(calib_file)
+
+    # External parameters
+    distance = args["distance"]
+    # luminosity = args["luminosity"]
+    lighting = args["lighting"]
+    h_angle = args["h_angle"]
+    v_angle = args["v_angle"]
+
+    # Choose result filename
+    result_filename = calib_file + "_" + distance + "_" + lighting + "_" + h_angle + "_" + v_angle + ".json"
 
     # Set camera parameters
     cam_input = params["Camera input"] 
@@ -441,23 +530,22 @@ def main():
     # Get the list of image names in the folder
     images = os.listdir("experiment/slides")
     
-    # Initialize JSON file
+    # # Initialize JSON file
+    result_filepath = "experiment/exp_results/" + result_filename
     experiment_data = {
         "Lens": calib_file,
-        "Distance": 50,
-        "Horizontal angle": 0,
-        "Vertical angle": 0,
-        "Lighting conditions": "Normal"
+        "Distance": distance,
+        "Horizontal angle": v_angle,
+        "Vertical angle": h_angle,
+        "Lighting conditions": lighting
     }
     experiment_data_json = json.dumps(experiment_data, indent=4)
-    with open("6_50_0_0_0.json", "w") as file:
+    with open(result_filepath, "w") as file:
+        file.write("[")
         file.write(experiment_data_json)
 
-    # # Shuffle the image names in a random order
-    # random.shuffle(images)
-
     # Initialize OCR engines
-    easyocr_reader = easyocr.Reader(['en'], gpu=False)
+    easyocr_reader = easyocr.Reader(['en'], gpu=False, verbose=False)
     pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract'
     os.environ['TESSDATA_PREFIX'] = r".\ocr_script\Tesseract_sevenSegmentsLetsGoDigital\tessdata"
 
@@ -487,8 +575,10 @@ def main():
 
         image_path = "experiment/slides/" + image
         img_code = image[:-4]
-        if img_code[0] != "4":
-            continue
+
+        # if img_code < "400":
+        #     continue
+
         image = cv2.imread(image_path)
         cv2.cvtColor(image, cv2.COLOR_BGR2RGB) 
         cv2.imshow("slideshow_window", image)
@@ -521,7 +611,6 @@ def main():
                 
                 if np.array_equal(previous_frame, frame):
                     print("Frame is same as previous")
-            
             previous_frame = frame 
             
             if show_frame:
@@ -531,17 +620,19 @@ def main():
                 frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
                 cv2.imshow("Cam frame", frame)
 
-
             # Get ROI for corresponding size
             roi_img = get_roi(rectified_frame, img_code, params["ROI list"])
+            # Crop ROI on text
+            cropped_roi, roi_with_box = crop_roi(roi_img, img_code)
             # Process image with corresponding pipeline
-            processed_img = process_img(roi_img, img_code)
+            processed_cropped_roi = process_img(cropped_roi, img_code)
 
             # Display obsreved ROIs
             if display_rois:
-                stacked_imgs = cv2.vconcat([roi_img, processed_img])
+                images_w_margins = add_margins(roi_img.shape[1], [cropped_roi, processed_cropped_roi])
+                stacked_imgs = cv2.vconcat([roi_with_box] + images_w_margins)
                 h, w = stacked_imgs.shape[:2]
-                new_w, new_h = resize_with_ratio(300, 500, w, h)
+                new_w, new_h = resize_with_ratio(600, 1000, w, h)
                 stacked_imgs = cv2.resize(stacked_imgs, (new_w,new_h))
                 stacked_imgs = cv2.cvtColor(stacked_imgs, cv2.COLOR_RGB2BGR)
                 cv2.imshow("Observed", stacked_imgs)
@@ -553,26 +644,31 @@ def main():
                     print("Measurement exited before end.")
                     close_cam(cam, cam_type)
                     cv2.destroyAllWindows()
+                    with open(result_filepath, "a") as file:
+                        file.write("]")
                     exit()
 
             # Call OCR
-            natural_text = call_ocr(roi_img, img_code, easyocr_reader)
+            natural_text = call_ocr(cropped_roi, img_code, easyocr_reader)
             natural_texts.append(natural_text)
-            processed_text = call_ocr(processed_img, img_code, easyocr_reader)
+            processed_text = call_ocr(processed_cropped_roi, img_code, easyocr_reader)
             processed_texts.append(processed_text)
-            # print(f"{img_code}_{i+1} => {natural_text}, {processed_text}")  
         
         # Store results in result array
         result = {
             "Image code": img_code,
             "Unproc img results": natural_texts,
-            "Proc img results": processed_texts
+            "Proc img results": processed_texts,
             }
 
         # Write the JSON data to a file
         result_json = json.dumps(result, indent=4)
-        with open("6_50_0_0_0.json", "a") as file:
+        with open(result_filepath, "a") as file:
+            file.write(",\n")
             file.write(result_json)
+    
+    with open(result_filepath, "a") as file:
+        file.write("]")
       
     close_cam(cam, cam_type)
     cv2.destroyAllWindows()

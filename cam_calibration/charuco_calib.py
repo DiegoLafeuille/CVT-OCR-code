@@ -1,27 +1,9 @@
 import numpy as np
 import cv2
 import glob
-from tqdm import tqdm
 import argparse
 import pickle
 
-
-
-ap = argparse.ArgumentParser()
-ap.add_argument("-c", "--camera", type=str, required=True,
-	help="Name of camera geting calibrated")
-ap.add_argument("-sl", "--square-length", type=float, default= 0.02,
-	help="Length of one square in m")
-ap.add_argument("-ml", "--marker-length", type=float, default= 0.016,
-	help="Length of one marker in m")
-ap.add_argument("-W", "--width", type=int, default= 12,
-	help="Number of columns of board")
-ap.add_argument("-H", "--height", type=int, default= 9,
-	help="Number of rows of board")
-ap.add_argument("-d", "--dictionary", type=str,
-	default="DICT_4X4_1000",
-	help="type of ArUCo tag")
-args = ap.parse_args()
 
 ARUCO_DICT = {
 	"DICT_4X4_50": cv2.aruco.DICT_4X4_50,
@@ -47,19 +29,7 @@ ARUCO_DICT = {
 	"DICT_APRILTAG_36h11": cv2.aruco.DICT_APRILTAG_36h11
 }
 
-
-camera = args.camera
-imgs_path = "cam_calibration/cameras/" + camera
-square_len = args.square_length
-marker_len = args.marker_length
-chess_width = args.width
-chess_height = args.height
-aruco_dict = cv2.aruco.getPredefinedDictionary(ARUCO_DICT[args.dictionary])
-board = cv2.aruco.CharucoBoard((chess_width, chess_height), square_len, marker_len, aruco_dict)
-
-
-
-def read_chessboards(images):
+def read_chessboards(images, calib_w, calib_h, aruco_dict, board):
     """
     Charuco base pose estimation.
     """
@@ -99,7 +69,7 @@ def read_chessboards(images):
     imsize = gray.shape
     return allCorners,allIds,imsize
 
-def calibrate_camera(allCorners,allIds,imsize):
+def calibrate_camera(board, allCorners,allIds,imsize):
     """
     Calibrates the camera using the dected corners.
     """
@@ -128,26 +98,56 @@ def calibrate_camera(allCorners,allIds,imsize):
     return ret, camera_matrix, distortion_coefficients0, rotation_vectors, translation_vectors, perViewErrors
 
 
+ap = argparse.ArgumentParser()
+ap.add_argument("-c", "--camera", type=str, required=True,
+	help="Name of camera geting calibrated")
+ap.add_argument("-sl", "--square-length", type=float, default= 0.02,
+	help="Length of one square in m")
+ap.add_argument("-ml", "--marker-length", type=float, default= 0.014,
+	help="Length of one marker in m")
+ap.add_argument("-W", "--width", type=int, default= 12,
+	help="Number of columns of board")
+ap.add_argument("-H", "--height", type=int, default= 9,
+	help="Number of rows of board")
+ap.add_argument("-d", "--dictionary", type=str,
+	default="DICT_4X4_1000",
+	help="type of ArUCo tag")
+args = ap.parse_args()
 
-# Get calibration pictures
-images = glob.glob(imgs_path + '/' + '*.' + 'png')
-print(f"{len(images)} found")
 
-# Get resolution of pictures
-img = cv2.imread(images[0])
-(calib_h, calib_w) = img.shape[:2]
-print(f"Resolution: {calib_w}x{calib_h}")
+def main():
 
-allCorners,allIds,imsize=read_chessboards(images)
-ret, mtx, dist, rvecs, tvecs, perViewErrors = calibrate_camera(allCorners,allIds,imsize)
-print("Average reprojection error = ", ret)
+    camera = args.camera
+    imgs_path = "cam_calibration/cameras/" + camera
+    square_len = args.square_length
+    marker_len = args.marker_length
+    chess_width = args.width
+    chess_height = args.height
+    aruco_dict = cv2.aruco.getPredefinedDictionary(ARUCO_DICT[args.dictionary])
+    board = cv2.aruco.CharucoBoard((chess_width, chess_height), square_len, marker_len, aruco_dict)
 
-for i in range(len(images)):
-    print(f"Reprojection error for image {i} {images[i]}: {perViewErrors[i]}")
+    # Get calibration pictures
+    images = glob.glob(imgs_path + '/' + '*.' + 'png')
+    print(f"{len(images)} found")
+
+    # Get resolution of pictures
+    img = cv2.imread(images[0])
+    (calib_h, calib_w) = img.shape[:2]
+    print(f"Resolution: {calib_w}x{calib_h}")
+
+    allCorners,allIds,imsize=read_chessboards(images, calib_w, calib_h, aruco_dict, board)
+    ret, mtx, dist, rvecs, tvecs, perViewErrors = calibrate_camera(board, allCorners,allIds,imsize)
+    print("Average reprojection error = ", ret)
+
+    for i in range(len(images)):
+        print(f"Reprojection error for image {i} {images[i]}: {perViewErrors[i]}")
 
 
-calibration_params = {"ret": ret, "mtx": mtx, "dist": dist, "rvecs": rvecs, "tvecs": tvecs, "calib_w": calib_w, "calib_h": calib_h}
+    calibration_params = {"ret": ret, "mtx": mtx, "dist": dist, "rvecs": rvecs, "tvecs": tvecs, "calib_w": calib_w, "calib_h": calib_h}
 
-# save the parameters in a pickle file
-with open('cam_calibration/cameras/' + camera + '/calibration_params.pickle', 'wb') as f:
-    pickle.dump(calibration_params, f)
+    # save the parameters in a pickle file
+    with open('cam_calibration/cameras/' + camera + '/calibration_params.pickle', 'wb') as f:
+        pickle.dump(calibration_params, f)
+    
+if __name__ == '__main__':
+    main()

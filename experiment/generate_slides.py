@@ -5,7 +5,7 @@ import pandas as pd
 import copy
 
 
-def generate_number_image(number, font_path, font_size, background_color, text_color):
+def generate_number_image(number, font_path, font_size, stroke_size, background_color, text_color):
     
     # Create a new image
     image_size = (600, 700)
@@ -30,7 +30,7 @@ def generate_number_image(number, font_path, font_size, background_color, text_c
     y = 100 - h // 2
     
     # Draw the number on the image
-    draw.text((x, y), str(number), font=font, fill=text_color)
+    draw.text((x, y), str(number), font=font, fill=text_color, stroke_width=stroke_size)
 
     # Load the charuco board image
     charuco_board_path = "aruco_patterns/charuco_boards/charuco_4x4_DICT_4X4_1000_sl20_ml14.png"
@@ -56,8 +56,10 @@ def main():
     for font in param.fonts:
         for size in param.sizes:
             for color in param.colors: 
-                    
+
+
                 # Font parameter
+                stroke_size = 0           
                 if font == "0":
                     font_path = "experiment/fonts/arial.ttf"
                 elif font == "1":
@@ -65,18 +67,19 @@ def main():
                 elif font == "2":
                     font_path = "experiment/fonts/micross.ttf"
                 elif font == "3":
-                    # Verify that MS Reference Sans Serif and MS Sans Serif are the same
-                    font_path = "experiment/fonts/microssbd.ttf"  
+                    # font_path = "experiment/fonts/micross.ttf" 
+                    # stroke_size = 1
+                    continue
                 elif font == "4":
                     font_path = "experiment/fonts/Let_s_go_Digital_Regular.ttf"
 
-                # Size parameter
+                # Size parameter (sizes for second screen)
                 if size == "0":
-                    font_size = 45
+                    font_size = 25 # 5.5mm
                 elif size == "1":
-                    font_size = 30
+                    font_size = 18 # 4mm
                 elif size == "2":
-                    font_size = 15
+                    font_size = 12 # 2.5mm
 
                 # Create a number made up of digits 0 to 9 in a random number
                 shuffled_digits = copy.copy(digits)
@@ -86,7 +89,8 @@ def main():
                 decimal_index = random.randint(1, len(shuffled_digits) - 1)
                 shuffled_digits.insert(decimal_index, '.')
                 number = ''.join(str(num) for num in shuffled_digits)
-
+                
+                # Set font and background colors
                 if color == "0":
                     text_color = (0, 0, 0)
                     background_color = (255, 255, 255)
@@ -100,7 +104,7 @@ def main():
                     text_color = (0, 0, 0)
                     background_color = (0, 255, 0)
 
-                image = generate_number_image(number, font_path, font_size, background_color, text_color)
+                image = generate_number_image(number, font_path, font_size, stroke_size, background_color, text_color)
                 img_code = font + size + color
                 
                 image.save("experiment/slides/" + img_code + ".png")
@@ -114,7 +118,7 @@ def main():
     df = pd.DataFrame(ground_truths, columns=['Code', 'Ground truth'])
 
     # Save the DataFrame to a CSV file
-    df.to_csv('experiment/ground_truths.csv', index=False)
+    df.to_csv('experiment/ground_truths_new.csv', index=False)
     print("Ground truths saved")
 
 
