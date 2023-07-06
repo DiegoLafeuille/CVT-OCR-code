@@ -2,7 +2,8 @@ import cv2
    
 
 # Specify the path to your image
-image_path = "aruco_patterns\charuco_boards\charuco_20x15_DICT_4X4_1000_sl20_ml14.png"
+# image_path = "aruco_patterns\charuco_boards\charuco_20x15_DICT_4X4_1000_sl20_ml14.png"
+image_path = "aruco_patterns\charuco_boards\charuco_40x30_DICT_4X4_1000_sl10_ml7.png"
 
 # Load the image
 image = cv2.imread(image_path)

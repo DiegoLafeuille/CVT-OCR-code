@@ -105,9 +105,9 @@ ap.add_argument("-sl", "--square-length", type=float, default= 0.02,
 	help="Length of one square in m")
 ap.add_argument("-ml", "--marker-length", type=float, default= 0.014,
 	help="Length of one marker in m")
-ap.add_argument("-W", "--width", type=int, default= 12,
+ap.add_argument("-W", "--width", type=int, default= 20,
 	help="Number of columns of board")
-ap.add_argument("-H", "--height", type=int, default= 9,
+ap.add_argument("-H", "--height", type=int, default= 15,
 	help="Number of rows of board")
 ap.add_argument("-d", "--dictionary", type=str,
 	default="DICT_4X4_1000",

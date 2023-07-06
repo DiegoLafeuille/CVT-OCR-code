@@ -18,7 +18,11 @@ def display_webcam():
     if width != frame_w or height != frame_h:
         print("Resolution not matching")
 
+    is_quit = False
     for i in range(0,-13, -1):
+        
+        if is_quit:
+            break
         
         print(i)
         cap.set(cv2.CAP_PROP_EXPOSURE, i) 
@@ -35,9 +39,15 @@ def display_webcam():
             # Display the frame
             frame = cv2.resize(frame, (width//4, height//4))
             cv2.imshow('Webcam Feed', frame)
+            key = cv2.waitKey(1)
 
-            # Check for the escape key to exit
-            if cv2.waitKey(1) == 32:
+            if key == 32:
+                print("Next exposure time")
+                break
+
+            if key == 27:
+                is_quit = True
+                print("Quitting script")
                 break
 
     # Release the webcam and close the OpenCV windows
