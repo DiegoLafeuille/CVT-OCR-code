@@ -1,11 +1,14 @@
 import gxipy as gx
-from PIL import Image
 import numpy
 import cv2
+import os
+import re
 
 
 # Set lens name
-lens = "daheng_12mm"
+lens = "daheng_25mm"
+
+# Setup Daheng camera
 
 # create a device manager
 device_manager = gx.DeviceManager()
@@ -64,10 +67,23 @@ numpy_image = raw_image.get_numpy_array()
 height, width = numpy_image.shape
 print(f"{width}x{height}")
 
-# Initialize a variable to store the image
-img_counter = 0
 
-cv2.namedWindow("Camera", cv2.WINDOW_NORMAL)
+# Specify the folder path where the images will be saved
+folder_path = "cam_calibration/cameras/" + lens + "/"
+
+# Check if the folder exists, create it if necessary
+if not os.path.exists(folder_path):
+    os.makedirs(folder_path)
+
+# Get a list of existing image files in the folder
+existing_images = [f for f in os.listdir(folder_path) if os.path.isfile(os.path.join(folder_path, f))]
+
+# Initialize the counter with the highest number from existing images
+img_counter = 0
+if existing_images:
+    # Extract the image number from the filename and find the maximum
+    img_numbers = [int(re.search(r"image_(\d+)\.png", f).group(1)) for f in existing_images if re.search(r"image_(\d+)\.png", f)]
+    img_counter = max(img_numbers)
 
 
 while True:
@@ -93,8 +109,8 @@ while True:
     frame = cv2.cvtColor(numpy.asarray(numpy_image),cv2.COLOR_BGR2RGB)
     
     # Show the frame in a window
-    # resized_frame = cv2.resize(frame,(int(width/5), int(height/5)), interpolation=cv2.INTER_AREA)
-    cv2.imshow("Camera", frame)
+    resized_frame = cv2.resize(frame,(int(width/5), int(height/5)), interpolation=cv2.INTER_AREA)
+    cv2.imshow("Camera", resized_frame)
 
     key = cv2.waitKey(1)
     
@@ -105,7 +121,7 @@ while True:
         
         # Save the image to disk
         filename = f"image_{img_counter}.png"
-        cv2.imwrite("cam_calibration/cameras/" + lens + "/" + filename, frame)
+        cv2.imwrite(f"{folder_path}{filename}", frame)
         
         # Print a message to the console
         print(f"{filename} saved!")
