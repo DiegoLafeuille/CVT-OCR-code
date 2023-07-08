@@ -25,10 +25,10 @@ ground_truths.csv
 # GUI parameters exports
 automated_script_params
 
-#  Byte-compiled / optimized / DLL files
-__pycache__/
-*.py[cod]
-*$py.class
+# #  Byte-compiled / optimized / DLL files
+# __pycache__/
+# *.py[cod]
+# *$py.class
 
 # C extensions
 *.so
