@@ -3,6 +3,7 @@ import cv2
 import glob
 import argparse
 import pickle
+import copy
 
 
 ARUCO_DICT = {
@@ -36,7 +37,6 @@ def read_chessboards(images, calib_w, calib_h, aruco_dict, board):
     print("POSE ESTIMATION STARTS:")
     allCorners = []
     allIds = []
-    decimator = 0
     # SUB PIXEL CORNER DETECTION CRITERION
     criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 100, 0.00001)
 
@@ -49,6 +49,7 @@ def read_chessboards(images, calib_w, calib_h, aruco_dict, board):
         
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         corners, ids, rejectedImgPoints = cv2.aruco.detectMarkers(gray, aruco_dict)
+        
 
         if len(corners)>0:
             # SUB PIXEL DETECTION
@@ -58,13 +59,24 @@ def read_chessboards(images, calib_w, calib_h, aruco_dict, board):
                                  zeroZone = (-1,-1),
                                  criteria = criteria)
             res2 = cv2.aruco.interpolateCornersCharuco(corners,ids,gray,board)
-            if res2[1] is not None and res2[2] is not None and len(res2[1])>3 and decimator%1==0:
+            if res2[1] is not None and res2[2] is not None and len(res2[1])>3:
                 allCorners.append(res2[1])
                 allIds.append(res2[2])
             else:
                 print(f"Board not found for {im}")
+        
 
-        decimator+=1
+        print(f"Corners found: {len(res2[1])}")
+        f = copy.copy(frame)
+        img_with_corners = cv2.aruco.drawDetectedCornersCharuco(f, res2[1], res2[2])
+        # img_with_corners = cv2.aruco.drawDetectedMarkers(f, corners, ids)
+        cv2.namedWindow("Image with Corners", cv2.WINDOW_NORMAL)
+        cv2.imshow('Image with Corners', img_with_corners)
+        cv2.setWindowTitle("Image with Corners", im)
+        if cv2.waitKey(0) == 27:
+            cv2.destroyAllWindows()
+            exit()
+        cv2.destroyAllWindows()
 
     imsize = gray.shape
     return allCorners,allIds,imsize
@@ -117,6 +129,7 @@ args = ap.parse_args()
 
 def main():
 
+
     camera = args.camera
     imgs_path = "cam_calibration/cameras/" + camera
     square_len = args.square_length
@@ -126,23 +139,40 @@ def main():
     aruco_dict = cv2.aruco.getPredefinedDictionary(ARUCO_DICT[args.dictionary])
     board = cv2.aruco.CharucoBoard((chess_width, chess_height), square_len, marker_len, aruco_dict)
 
-    print(f"Marker length = {marker_len}")
 
     # Get calibration pictures
     images = glob.glob(imgs_path + '/' + '*.' + 'png')
-    print(f"{len(images)} pictures found")
+    print(f"{len(images)} found")
 
     # Get resolution of pictures
     img = cv2.imread(images[0])
     (calib_h, calib_w) = img.shape[:2]
     print(f"Resolution: {calib_w}x{calib_h}")
-
     allCorners,allIds,imsize=read_chessboards(images, calib_w, calib_h, aruco_dict, board)
-    ret, mtx, dist, rvecs, tvecs, perViewErrors = calibrate_camera(board, allCorners,allIds,imsize)
-    print("Average reprojection error = ", ret)
+    
+    # Calibrate, remove image with highest error and recalibrate as long as average error is too high
+    ret = 10
+    while ret > 1:
 
-    for i in range(len(images)):
-        print(f"Reprojection error for image {i} {images[i]}: {perViewErrors[i]}")
+        print(f"New calibration with {len(images)} pictures")
+        ret, mtx, dist, rvecs, tvecs, perViewErrors = calibrate_camera(board, allCorners,allIds,imsize)
+        print("Average reprojection error = ", ret)
+
+        if ret > 1:
+            # Find and remove image with max error from image list
+            max_error_index = np.argmax(perViewErrors)
+            max_error_image = images[max_error_index]
+            print(f"Removing image with the highest perViewError (= {perViewErrors[max_error_index]}): {max_error_image}")
+
+            for i in range(len(images)):
+                print(f"Reprojection error for image {i} {images[i]}: {perViewErrors[i]}")
+            
+            # Remove the image from the list
+            del images[max_error_index]
+            del allCorners[max_error_index]
+            del allIds[max_error_index]
+
+
 
 
     calibration_params = {"ret": ret, "mtx": mtx, "dist": dist, "rvecs": rvecs, "tvecs": tvecs, "calib_w": calib_w, "calib_h": calib_h}

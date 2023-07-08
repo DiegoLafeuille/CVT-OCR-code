@@ -3,6 +3,7 @@ import numpy
 import cv2
 import os
 import re
+import copy
 
 
 # Set lens name
@@ -31,8 +32,8 @@ cam.TriggerMode.set(gx.GxSwitchEntry.OFF)
 # set exposure
 cam.ExposureTime.set(150000.0)
 
-# set auto white balance
-cam.BalanceWhiteAuto.set(1)
+# # set auto white balance
+# cam.BalanceWhiteAuto.set(1)
 
 # set gain
 cam.Gain.set(10.0)
@@ -76,7 +77,7 @@ if not os.path.exists(folder_path):
     os.makedirs(folder_path)
 
 # Get a list of existing image files in the folder
-existing_images = [f for f in os.listdir(folder_path) if os.path.isfile(os.path.join(folder_path, f))]
+existing_images = [f for f in os.listdir(folder_path) if f.endswith(".png")]
 
 # Initialize the counter with the highest number from existing images
 img_counter = 0
@@ -109,6 +110,7 @@ while True:
     frame = cv2.cvtColor(numpy.asarray(numpy_image),cv2.COLOR_BGR2RGB)
     
     # Show the frame in a window
+    resized_frame = copy.copy(frame)
     resized_frame = cv2.resize(frame,(int(width/5), int(height/5)), interpolation=cv2.INTER_AREA)
     cv2.imshow("Camera", resized_frame)
 

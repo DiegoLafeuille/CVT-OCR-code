@@ -335,7 +335,7 @@ class OCR_GUI:
                 self.cam = self.device_manager.open_device_by_sn(self.camera_input_dropdown.get())
                 
                 self.cam.TriggerMode.set(gx.GxSwitchEntry.OFF)
-                self.cam.ExposureTime.set(80000.0)
+                self.cam.ExposureTime.set(150000.0)
                 self.cam.Gain.set(10.0)
 
                 # get param of improving image quality
