@@ -16,9 +16,6 @@ results.csv
 # Aruco marker images
 tags
 
-# Fonts
-*.ttf
-
 # Ground truths
 ground_truths.csv
 
