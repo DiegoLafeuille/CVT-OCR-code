@@ -23,7 +23,6 @@ def ocr_on_roi(frame, roi_list, cols):
     # Extract text from the ROIs using easyOCR
     texts = []
     timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
-    texts.append(timestamp)
 
     for roi in roi_list:
 
@@ -47,11 +46,8 @@ def ocr_on_roi(frame, roi_list, cols):
         elif roi['font'].ocr_engine == "tesseract":
             text = tesseract_ocr(processed_roi, roi['only_nums'])
         texts.append(text)
-        
-    # Write the extracted text to the csv file
-    with open('results.csv', mode='a', newline='') as file:
-        writer = csv.DictWriter(file, fieldnames=cols, quoting=csv.QUOTE_ALL)
-        writer.writerow({cols[i]: texts[i] for i in range(len(texts))})
+
+    return timestamp, texts
 
 def easyocr_ocr(img, only_nums):
     
