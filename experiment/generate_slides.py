@@ -47,8 +47,73 @@ def generate_number_image(number, font_path, font_size, stroke_size, background_
     
     return image
 
+def read_numbers():
 
-def main():
+    # Read the existing ground_truths.csv file
+    df = pd.read_csv('experiment/ground_truths_private_pc.csv', dtype=str)
+
+    # Iterate over the DataFrame
+    for index, row in df.iterrows():
+        
+        img_code, number = row['Code'], row['Ground truth']
+
+        # Extract font, size, color from the image code
+        font = img_code[0]
+        size = img_code[1]
+        color = img_code[2]
+
+        # Font parameter
+        stroke_size = 0           
+        if font == "0":
+            font_path = "experiment/fonts/arial.ttf"
+        elif font == "1":
+            font_path = "experiment/fonts/arialbd.ttf"
+        elif font == "2":
+            font_path = "experiment/fonts/micross.ttf"
+        elif font == "3":
+            # font_path = "experiment/fonts/micross.ttf" 
+            # stroke_size = 1
+            continue
+        elif font == "4":
+            font_path = "experiment/fonts/Let_s_go_Digital_Regular.ttf"
+
+        # # Size parameter (sizes for second screen)
+        # if size == "0":
+        #     font_size = 25 # 5.5mm
+        # elif size == "1":
+        #     font_size = 18 # 4mm
+        # elif size == "2":
+        #     font_size = 12 # 2.5mm
+
+        # Size parameter (sizes for private pc)
+        if size == "0":
+            font_size = 45 # 5.5mm
+        elif size == "1":
+            font_size = 32 # 4mm
+        elif size == "2":
+            font_size = 20 # 2.5mm
+
+        # Set font and background colors
+        if color == "0":
+            text_color = (0, 0, 0)
+            background_color = (255, 255, 255)
+        elif color == "1":
+            text_color = (255, 255, 255)
+            background_color = (0, 0, 0)
+        elif color == "2":
+            text_color = (0, 0, 0)
+            background_color = (255, 0, 0)
+        elif color == "3":
+            text_color = (0, 0, 0)
+            background_color = (0, 255, 0)
+
+        image = generate_number_image(number, font_path, font_size, stroke_size, background_color, text_color)
+        
+        image.save("experiment/slides/" + img_code + ".png")
+
+    print(f"Total number of slides is {len(df)}")
+
+def create_numbers():
 
     ground_truths = []
     digits = list(range(10))
@@ -118,9 +183,17 @@ def main():
     df = pd.DataFrame(ground_truths, columns=['Code', 'Ground truth'])
 
     # Save the DataFrame to a CSV file
-    df.to_csv('experiment/ground_truths_new.csv', index=False)
+    df.to_csv('experiment/ground_truths.csv', index=False)
     print("Ground truths saved")
 
+def main():
+    
+    create = False
+
+    if create:
+        create_numbers()
+    else:
+        read_numbers() 
 
 if __name__ == '__main__':
     main()
