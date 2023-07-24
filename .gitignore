@@ -8,10 +8,14 @@ train_val_images
 results.csv
 *.json
 
-# calibration images
+# Database 
+*.db
+
+# Images and videos
 *.jpg
 *.jpeg
 *.png
+*.avi
 
 # Aruco marker images
 tags

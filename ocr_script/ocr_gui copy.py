@@ -1,6 +1,7 @@
 import tkinter as tk
 from tkinter import ttk
 from tkinter import messagebox
+from tkinter import filedialog
 import numpy as np
 import cv2
 from cv2 import aruco
@@ -9,8 +10,8 @@ from PIL import Image, ImageTk
 from ocr_code import ocr_on_roi, crop_roi
 import img_processing
 import ocr_code
+import database
 import pickle
-import csv
 import datetime
 import time
 from sympy import symbols, Eq
@@ -44,6 +45,7 @@ ARUCO_DICT = {
 	"DICT_APRILTAG_36h10": cv2.aruco.DICT_APRILTAG_36h10,
 	"DICT_APRILTAG_36h11": cv2.aruco.DICT_APRILTAG_36h11
 }
+
 
 class OCR_GUI:
 
@@ -111,11 +113,13 @@ class OCR_GUI:
         self.indicate_surface_button.pack(side=tk.LEFT, padx=15)
 
         # "Download surface and ROI data" button for single aruco method
-        self.dl_button = ttk.Button(button_container, text="Download surface and ROI data", command=self.file_name_entry_window)
+        self.dl_button = ttk.Button(button_container, text="Download surface and ROI data", command=self.export_file_name_entry_window)
         self.dl_button.pack(side=tk.LEFT, padx=15)
 
+        refresh_button = ttk.Button(button_container, text="Import existing parameters", command=self.update_params)
+        refresh_button.pack(side=tk.LEFT, padx=15)
+
         self.surface_world_coords = []
-        self.roi_list = []
 
         ############################### Right frame ###############################
         
@@ -287,6 +291,34 @@ class OCR_GUI:
         self.results = []
 
         self.master.update()
+
+
+    def update_params(self):
+        
+        # Get parameters from pickle file
+        params = self.import_params()
+
+        ## Update camera parameters
+        # Camera type
+        # Camera input
+        # Calibration file
+
+        ## Update charuco parameters
+        # Aruco dictionary
+        # Aruco size
+        # Square size
+        # Charuco width
+        # Charuco height
+
+        ## Update target surface information
+        # ROI list
+        #  -> variable
+        #  -> ROI
+        #  -> only_nums
+        #  -> font
+
+        ## Update ROIs
+        # Target surface world coordinates
 
 
     def get_available_cameras(self):
@@ -515,7 +547,15 @@ class OCR_GUI:
                 self.canvas.unbind("<ButtonRelease-1>")
 
                 roi_list = self.create_rois()
-                self.ocr_thread = threading.Thread(target=self.call_ocr, daemon=True, args=[roi_list])
+                
+                # Setup database tables
+                self.measurement_name_entry_window(vars)
+                self.master.wait_window(self.meas_info_window)
+
+                # Start OCR function thread
+                meas_name = self.meas_name_var.get()
+                meas_comment = self.meas_name_com.get()
+                self.ocr_thread = threading.Thread(target=self.call_ocr, daemon=True, args=[roi_list, vars, meas_name, meas_comment])
                 self.ocr_thread.start()
 
         # Stop OCR
@@ -527,10 +567,47 @@ class OCR_GUI:
             self.canvas.bind("<B1-Motion>", self.on_move_press)
             self.canvas.bind("<ButtonRelease-1>", self.on_button_release)       
 
-    def call_ocr(self, roi_list):
+    def measurement_name_entry_window(self, vars):
+        '''Create a new window to enter the name of the measurement (for database)'''
 
-        # Boolean to save video of ROIs if wished
-        save_video = False
+        self.meas_info_window = tk.Toplevel(self.master)
+        self.meas_info_window.geometry = ("600x300")
+        self.meas_info_window.title("Enter Measurement Information")
+
+        # Create a StringVar to store the measurement name and comment
+        self.meas_name_var = tk.StringVar()
+        self.meas_name_com = tk.StringVar()
+
+        # Create a label and entry field for measurement name
+        meas_name_container = ttk.Frame(self.meas_info_window)
+        meas_name_container.pack(padx=10, pady=10)
+        meas_name_label = ttk.Label(meas_name_container, text="Measurement Name:")
+        meas_name_label.pack(side=tk.LEFT, padx=10, pady=10)
+        meas_name_entry = ttk.Entry(meas_name_container, textvariable=self.meas_name_var)
+        meas_name_entry.pack(side=tk.LEFT, padx=10, pady=10)
+
+        # Create a label and entry field for measurment comment
+        meas_comment_container = ttk.Frame(self.meas_info_window)
+        meas_comment_container.pack(padx=10, pady=10)
+        meas_comment_label = ttk.Label(meas_comment_container, text="Measurement Comment:")
+        meas_comment_label.pack(side=tk.LEFT, padx=10, pady=10)
+        meas_comment_entry = ttk.Entry(meas_comment_container, textvariable=self.meas_name_com)
+        meas_comment_entry.pack(side=tk.LEFT, padx=10, pady=10)
+
+        # Create a submit button
+        submit_button = ttk.Button(self.meas_info_window, text="Submit", command=lambda: self.meas_info_window.destroy())
+        submit_button.pack(padx=10, pady=10)
+
+    def call_ocr(self, roi_list, vars, meas_name, meas_comment):
+
+        
+        # Setup database tables
+        self.setup_database(meas_name, meas_comment, vars)
+
+        # Boolean to show and save video of ROIs if wished
+        save_video = True
+        display_rois = True
+        stacked_roi_images = []
         
         # Initializing steps of the different involved OCR engines
         ocr_engines = set([roi['font'].ocr_engine for roi in roi_list])
@@ -540,19 +617,10 @@ class OCR_GUI:
     
         # Create column names
         cols = ['Timestamp'] + [roi['variable'] for roi in roi_list]
-
-        # Create the csv file and write the headers
-        with open('results.csv', mode='w', newline='') as file:
-                writer = csv.DictWriter(file, fieldnames=cols)
-                writer.writeheader()
         
         cv2.namedWindow("ROIs", cv2.WINDOW_NORMAL)
 
-        if save_video:
-            stacked_roi_images = []
-
         while self.ocr_on:
-
 
             frame = copy.copy(self.rectified_frame)
 
@@ -561,71 +629,97 @@ class OCR_GUI:
             next_call_time = self.frequency/1000 - elapsed_time
             if next_call_time > 0:
                 time.sleep(next_call_time)
-        
-            # Indicate in OCR's result file if not all necessary markers have been detected
-            if frame is None:
-                self.last_call_time = time.time()
-                timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
-                with open('results.csv', mode='a', newline='') as file:
-                    file.write(f"{timestamp},Not enough Aruco markers detected\n")
             
-            # Call OCR function if all necessary markers have been detected 
-            else:
-                self.last_call_time = time.time()
-                ocr_on_roi(self.rectified_frame, roi_list, cols)
-                # print("process_webcam_feed time = ", time.time() - self.last_call_time)
+            # Call OCR function
+            self.last_call_time = time.time()
+            timestamp, values = ocr_on_roi(frame, roi_list, cols)
+            # print("process_webcam_feed time = ", time.time() - self.last_call_time)
 
-                roi_images = []
-                cropped_rois = []
-                final_rois = []
-                max_width = 0
+            # Save results to database
+            for value, var_id in zip(values, self.vars_ids):
+                self.db.insert_frame_data(self.meas_id, timestamp, var_id['ID'], value)
 
-                # Find the maximum width among the ROI images
-                for roi in roi_list:
-                    x1 = min(roi['ROI'][0],roi['ROI'][2])
-                    x2 = max(roi['ROI'][0],roi['ROI'][2])
-                    y1 = min(roi['ROI'][1],roi['ROI'][3])
-                    y2 = max(roi['ROI'][1],roi['ROI'][3])
-                    roi_img = frame[y1:y2, x1:x2]
-                    roi_images.append(roi_img)
-                    roi_width = roi_img.shape[1]
-                    max_width = max(max_width, roi_width)
-
-                for roi_img, roi in zip(roi_images, roi_list):
-                    cropped_roi, roi_img = crop_roi(roi_img)
-                    cropped_roi = roi['font'].proc_pipeline(cropped_roi)
-                    if cropped_roi.shape[2] < 3:
-                        cropped_roi = cv2.cvtColor(cropped_roi, cv2.COLOR_GRAY2RGB)
-                    cropped_rois.append(cropped_roi)
-
-                    # Give border to original roi if not biggest roi width
-                    roi_width = roi_img.shape[1]
-                    if roi_width < max_width:
-                        border_right = (max_width - roi_width) // 2
-                        border_left = max_width - roi_width - border_right
-                        roi_img = cv2.copyMakeBorder(roi_img, 0, 0, border_left, border_right, cv2.BORDER_CONSTANT, value=(0, 0, 0))
-                    final_rois.append(roi_img)
-
-                    # Give border to cropped roi to match biggest roi width
-                    cropped_width = cropped_roi.shape[1]
-                    border_right = (max_width - cropped_width) // 2
-                    border_left = max_width - cropped_width - border_right
-                    cropped_roi = cv2.copyMakeBorder(cropped_roi, 0, 0, border_left, border_right, cv2.BORDER_CONSTANT, value=(0, 0, 0))
-                    final_rois.append(cropped_roi)
-
-                # Display ROIs in a new window
-                stacked_roi_img = cv2.vconcat(final_rois)
-                stacked_roi_img = cv2.cvtColor(stacked_roi_img, cv2.COLOR_RGB2BGR)
-                if save_video:
-                    stacked_roi_images.append(stacked_roi_img)
-                    print(len(stacked_roi_images))
-                cv2.imshow("ROIs", stacked_roi_img)
-                if cv2.waitKey(1) & 0xFF == ord('q'):
-                    break
-
-        cv2.destroyAllWindows()
+            stacked_roi_images.append(self.show_rois(display_rois, frame, roi_list, values))
+            
+        if display_rois:
+            cv2.destroyAllWindows()
         if save_video:
-            save_frames_to_avi(stacked_roi_images)
+            save_frames_to_avi(stacked_roi_images, meas_name)
+
+    def setup_database(self, meas_name, meas_comment, vars):
+        
+        # Connect to database and create tables if non-existence
+        self.db = database.OCRDatabase("ocr_script/ocr_database.db")
+        self.db.create_tables()
+
+        # Insert new measurement
+        self.meas_id = self.db.insert_measurement(meas_name, meas_comment)
+
+        # Insert variables
+        self.vars_ids = []
+        for var in vars:
+            var_id = self.db.insert_variable(self.meas_id, var)
+            self.vars_ids.append({"Variable": var, "ID": var_id})
+        self.vars_ids
+
+    def show_rois(self, display_rois, frame, roi_list, values):
+
+        # Display ROIs
+        roi_images = []
+        cropped_rois = []
+        final_rois = []
+        max_width = 0
+
+        # Find the maximum width among the ROI images
+        for roi in roi_list:
+            x1 = min(roi['ROI'][0],roi['ROI'][2])
+            x2 = max(roi['ROI'][0],roi['ROI'][2])
+            y1 = min(roi['ROI'][1],roi['ROI'][3])
+            y2 = max(roi['ROI'][1],roi['ROI'][3])
+            roi_img = frame[y1:y2, x1:x2]
+            roi_images.append(roi_img)
+            roi_width = roi_img.shape[1]
+            max_width = max(max_width, roi_width)
+
+        for roi_img, roi, value in zip(roi_images, roi_list, values):
+            cropped_roi, roi_img = crop_roi(roi_img)
+            cropped_roi = roi['font'].proc_pipeline(cropped_roi)
+            if cropped_roi.shape[2] < 3:
+                cropped_roi = cv2.cvtColor(cropped_roi, cv2.COLOR_GRAY2RGB)
+            cropped_rois.append(cropped_roi)
+
+            # Give border to original roi if not biggest roi width
+            roi_width = roi_img.shape[1]
+            if roi_width < max_width:
+                border_right = (max_width - roi_width) // 2
+                border_left = max_width - roi_width - border_right
+                roi_img = cv2.copyMakeBorder(roi_img, 0, 0, border_left, border_right, cv2.BORDER_CONSTANT, value=(0, 0, 0))
+            
+            
+            # Add the detected text on the ROI
+            # Here (0, roi_img.shape[0]) will place the text on the bottom left of the ROI.
+            cv2.putText(roi_img, value, (0, roi_img.shape[0]), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255), 2)
+
+            final_rois.append(roi_img)
+
+            # Give border to cropped roi to match biggest roi width
+            cropped_width = cropped_roi.shape[1]
+            border_right = (max_width - cropped_width) // 2
+            border_left = max_width - cropped_width - border_right
+            cropped_roi = cv2.copyMakeBorder(cropped_roi, 0, 0, border_left, border_right, cv2.BORDER_CONSTANT, value=(0, 0, 0))
+            final_rois.append(cropped_roi)
+
+        # Display ROIs in a new window
+        stacked_roi_img = cv2.vconcat(final_rois)
+        stacked_roi_img = cv2.cvtColor(stacked_roi_img, cv2.COLOR_RGB2BGR)
+        # print("Stacked images: ", len(stacked_roi_images))
+        
+        if display_rois:
+            cv2.imshow("ROIs", stacked_roi_img)
+            cv2.waitKey(1)
+
+        return stacked_roi_img
+
 
 
     ######################## ROI list functions ########################
@@ -1335,7 +1429,21 @@ class OCR_GUI:
         return pixel_coords
 
 
-    #################### Functions for export button ####################
+    #################### Functions for importing and exporting parameters ####################
+
+    def import_params(self):
+        
+        # Get parameter file
+        filename = filedialog.askopenfilename()
+        print("Importing parameters from ", filename)
+        
+        # Load the GUI parameters from the pickle file
+        with open(filename, 'rb') as f:
+            params = pickle.load(f)
+        
+        print(params)
+
+        return params
 
     def verify_export_conditions(self):
 
@@ -1355,8 +1463,8 @@ class OCR_GUI:
         
         return True
 
-    def file_name_entry_window(self):
-        '''Create a new window'''
+    def export_file_name_entry_window(self):
+        '''Create a new window to enter name of exported parameters' file'''
 
         if not self.verify_export_conditions():
             return
@@ -1373,7 +1481,7 @@ class OCR_GUI:
         file_entry.pack(side=tk.LEFT, padx=10, pady=10)
 
         # Create a submit button
-        submit_button = ttk.Button(self.download_window, text="Submit", command=lambda: self.export_data(file_entry.get()))
+        submit_button = ttk.Button(self.download_window, text="Submit", command=lambda: self.export_parameters(file_entry.get()))
         submit_button.pack(padx=10, pady=10)
 
     def verify_filename(self, filename):
@@ -1387,13 +1495,17 @@ class OCR_GUI:
 
         return True
 
-    def export_data(self, filename):
+    def export_parameters(self, filename):
         '''Downloads all necessary data to be able to run script to do the 
         OCR without need of prior configuration through the API'''
 
         if not self.verify_filename(filename):
             return
-
+        
+        rois = self.create_rois()
+        for roi in rois:
+            roi["font"] = roi["font"].name
+        
         export_content = {
             "Camera type": self.cam_type.get(),
             "Calibration file": self.selected_camera,
@@ -1403,7 +1515,7 @@ class OCR_GUI:
             "Square size": self.square_size,
             "Charuco width": self.charuco_width,
             "Charuco heigt": self.charuco_height,
-            "ROI list": self.create_rois(),
+            "ROI list": rois,
             "Target surface world coordinates": self.surface_world_coords,
         }
 
@@ -1420,12 +1532,17 @@ class OCR_GUI:
 
 
 
-def save_frames_to_avi(frames):
+def save_frames_to_avi(frames, meas_name):
 
     print(f"Frames in video: {len(frames)}")
+    
+    # Change name to better format
+    new_name = meas_name.lower().replace(" ", "_")
+    video_path = "videos/" + new_name + ".avi"
+
     # Define the codec and create a VideoWriter object
     # fourcc = cv2.VideoWriter_fourcc(*'XVID')
-    video_out = cv2.VideoWriter('roi_video.avi', cv2.VideoWriter_fourcc('M','J','P','G'), 1.0, (frames[0].shape[1], frames[0].shape[0]))
+    video_out = cv2.VideoWriter(video_path, cv2.VideoWriter_fourcc('M','J','P','G'), 1.0, (frames[0].shape[1], frames[0].shape[0]))
 
     # Write each frame to the video
     for frame in frames:
@@ -1433,6 +1550,7 @@ def save_frames_to_avi(frames):
 
     # Release the video writer
     video_out.release()
+    print("Video saved as ", new_name + ".avi")
 
 def resize_with_ratio(max_width, max_height, width, height):
 

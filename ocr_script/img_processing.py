@@ -25,6 +25,19 @@ def default_pipeline(image):
 
     return img
 
+def normal_grayscale_pipeline(image):
+    '''Default image processing pipeline.'''
+
+    img = copy.copy(image)
+
+    # Grayscale
+    img = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
+
+    # Turn back to RGB format
+    img = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
+
+    return img
+
 def seven_seg_pipeline(image):
 
     img = copy.copy(image)
@@ -43,6 +56,7 @@ def seven_seg_pipeline(image):
 
 
 fonts = [
+    Font("Norm. gray", normal_grayscale_pipeline, "easyocr"),
     Font("Default", default_pipeline, "easyocr"),
     Font("7-segments display", seven_seg_pipeline, "tesseract"),
     Font("None", no_processing_pipeline, "easyocr"),

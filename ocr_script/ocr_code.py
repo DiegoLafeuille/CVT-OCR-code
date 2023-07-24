@@ -12,7 +12,7 @@ def initialize_ocr_engines(ocr_engines):
 
     if "easyocr" in ocr_engines:
         global easyocr_reader
-        easyocr_reader = easyocr.Reader(['en'], gpu=False, verbose=False)
+        easyocr_reader = easyocr.Reader(['en'], gpu=True, verbose=False)
     
     if "tesseract" in ocr_engines:
         pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract'
@@ -115,7 +115,11 @@ def crop_roi(img):
     contours, _ = cv2.findContours(opened, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
     # Combine all contours into a single contour
-    combined_contour = np.vstack(contours)
+    try:
+        combined_contour = np.vstack(contours)
+    except:
+        print("No contour found")
+        return img, img
 
     # Get the bounding rectangle of the combined contour
     x, y, w, h = cv2.boundingRect(combined_contour)

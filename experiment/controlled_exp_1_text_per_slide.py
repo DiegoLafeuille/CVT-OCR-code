@@ -336,28 +336,28 @@ def rectify_image(frame, params, calib_w, calib_h, mtx, dist):
 
     return rectified_frame
 
-def get_roi_imgs(frame, roi_list):
+def get_roi(frame, code, roi_list):
 
-    # Get ROI coordinates
-    rois = []
-    for size in ["Big", "Medium", "Small"]:
-        roi = next((rectangle['ROI'] for rectangle in roi_list if rectangle['variable'] == size), None)
-        if roi is None:
-            print("ROI list from export is missing an ROI.")
-            exit()
-        rois.append(roi)
+    # Get correct ROI coordinates for the size of this slide's text
+    if code[1] == "0":
+        roi = next((rectangle['ROI'] for rectangle in roi_list if rectangle['variable'] == 'Big'), None)
+    if code[1] == "1":
+        roi = next((rectangle['ROI'] for rectangle in roi_list if rectangle['variable'] == 'Medium'), None)
+    if code[1] == "2":
+        roi = next((rectangle['ROI'] for rectangle in roi_list if rectangle['variable'] == 'Small'), None)
+    
+    if roi is None:
+        print("ROI list from export is missing an ROI.")
+        exit()
 
-    # Crop frame on ROIs
-    roi_imgs = []
-    for roi in rois:
-        x1 = min(roi[0],roi[2])
-        x2 = max(roi[0],roi[2])
-        y1 = min(roi[1],roi[3])
-        y2 = max(roi[1],roi[3])
-        roi_img = frame[y1:y2, x1:x2]
-        roi_imgs.append(roi_img)
+    # Crop frame on ROI
+    x1 = min(roi[0],roi[2])
+    x2 = max(roi[0],roi[2])
+    y1 = min(roi[1],roi[3])
+    y2 = max(roi[1],roi[3])
+    roi_img = frame[y1:y2, x1:x2]
 
-    return roi_imgs
+    return roi_img
 
 def crop_roi(img, img_code):
     
@@ -365,7 +365,7 @@ def crop_roi(img, img_code):
     gray = np.max(img, axis=2)
 
     # Apply thresholding to convert the image to binary, characters need to be white, background black
-    if img_code[1] == "1":
+    if img_code[2] == "1":
         binary = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]
     else:
         binary = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)[1]
@@ -399,23 +399,20 @@ def crop_roi(img, img_code):
 
     return cropped_image, image_with_box
 
-def add_margins(rois_with_box, cropped_rois, processed_cropped_rois):
+def add_margins(max_width, img_list):
     
     result_images = []
-    max_width = max([img.shape[1] for img in rois_with_box])
-    img_list = [elem for triplet in zip(rois_with_box, cropped_rois, processed_cropped_rois) for elem in triplet]       
-
+        
     for img in img_list:
         
         # Get the original image width
         width = img.shape[1]
-
+        
         # Calculate the margin width
         margin_width = max_width - width
         
         # Ensure margin width is positive
         if margin_width < 0:
-            print(max_width, width)
             raise("Error: Cropped image bigger than original image")
 
         # Calculate the left and right margins
@@ -530,7 +527,7 @@ def main():
     v_angle = args["v_angle"]
 
     # Choose result filename
-    result_filename = calib_file + "_" + distance + "_" + lighting + "_" + h_angle + "_" + v_angle + "_test_slides_3.json"
+    result_filename = calib_file + "_" + distance + "_" + lighting + "_" + h_angle + "_" + v_angle + "_test1.json"
 
     # Set camera parameters
     cam_input = params["Camera input"] 
@@ -538,7 +535,7 @@ def main():
     cam, color_correction_param, contrast_lut, gamma_lut = update_cam_input(cam_input, cam_type, calib_w, calib_h)
 
     # Get the list of image names in the folder
-    images = os.listdir("experiment/slides_3")
+    images = os.listdir("experiment/slides")
     
     # # Initialize JSON file
     result_filepath = "experiment/exp_results/" + result_filename
@@ -562,7 +559,7 @@ def main():
     os.environ['TESSDATA_PREFIX'] = r".\ocr_script\Tesseract_sevenSegmentsLetsGoDigital\tessdata"
 
     # Show one slide to setup camera
-    image_path = "experiment/slides_3/" + images[0]
+    image_path = "experiment/slides/" + images[0]
     image = cv2.imread(image_path)
     cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
     cv2.imshow("slideshow_window", image)
@@ -585,8 +582,9 @@ def main():
     # Print the shuffled image names
     for image in images:
 
-        image_path = "experiment/slides_3/" + image
-        img_code = image[:2]
+
+        image_path = "experiment/slides/" + image
+        img_code = image[:3]
 
         # if img_code < "400":
         #     continue
@@ -626,24 +624,17 @@ def main():
                 frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
                 cv2.imshow("Cam frame", frame)
 
-            # Get ROIs
-            roi_imgs = get_roi_imgs(rectified_frame, params["ROI list"])
-            
+            # Get ROI for corresponding size
+            roi_img = get_roi(rectified_frame, img_code, params["ROI list"])
             # Crop ROI on text
-            cropped_rois, rois_with_box, processed_cropped_rois = [], [], []
-            for roi_img in roi_imgs:
-                cropped_roi, roi_with_box = crop_roi(roi_img, img_code)
-                # Process image with corresponding pipeline
-                processed_cropped_roi = process_img(cropped_roi, img_code)
-                cropped_rois.append(cropped_roi)
-                rois_with_box.append(roi_with_box)
-                processed_cropped_rois.append(processed_cropped_roi)
-            
+            cropped_roi, roi_with_box = crop_roi(roi_img, img_code)
+            # Process image with corresponding pipeline
+            processed_cropped_roi = process_img(cropped_roi, img_code)
 
             # Display observed ROIs
             if display_rois:
-                images_w_margins = add_margins(rois_with_box, cropped_rois, processed_cropped_rois)
-                stacked_imgs = cv2.vconcat(images_w_margins)
+                images_w_margins = add_margins(roi_img.shape[1], [cropped_roi, processed_cropped_roi])
+                stacked_imgs = cv2.vconcat([roi_with_box] + images_w_margins)
                 h, w = stacked_imgs.shape[:2]
                 new_w, new_h = resize_with_ratio(600, 1000, w, h)
                 stacked_imgs = cv2.resize(stacked_imgs, (new_w,new_h))
@@ -662,23 +653,16 @@ def main():
                     exit()
 
             # Call OCR
-            natural_text = [call_ocr(cropped_roi, img_code, easyocr_reader) for cropped_roi in cropped_rois]
+            natural_text = call_ocr(cropped_roi, img_code, easyocr_reader)
             natural_texts.append(natural_text)
-            processed_text = [call_ocr(processed_cropped_roi, img_code, easyocr_reader) for processed_cropped_roi in processed_cropped_rois]
+            processed_text = call_ocr(processed_cropped_roi, img_code, easyocr_reader)
             processed_texts.append(processed_text)
         
         # Store results in result array
-        unproc_big = [text[0] for text in natural_texts]
-        unproc_medium = [text[1] for text in natural_texts]
-        unproc_small = [text[2] for text in natural_texts]
-        proc_big = [text[0] for text in processed_texts]
-        proc_medium = [text[1] for text in processed_texts]
-        proc_small = [text[2] for text in processed_texts]
         result = {
             "Image code": img_code,
-            "Big": {"Unprocessed": unproc_big,"Processed": proc_big},
-            "Medium": {"Unprocessed": unproc_medium,"Processed": proc_medium},
-            "Small": {"Unprocessed": unproc_small,"Processed": proc_small}
+            "Unproc img results": natural_texts,
+            "Proc img results": processed_texts,
             }
 
         # Write the JSON data to a file

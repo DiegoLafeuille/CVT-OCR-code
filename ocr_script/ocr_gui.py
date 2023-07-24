@@ -573,8 +573,9 @@ class OCR_GUI:
         self.setup_database(meas_name, meas_comment, vars)
 
         # Boolean to show and save video of ROIs if wished
-        save_video = False
+        save_video = True
         display_rois = True
+        stacked_roi_images = []
         
         # Initializing steps of the different involved OCR engines
         ocr_engines = set([roi['font'].ocr_engine for roi in roi_list])
@@ -599,19 +600,19 @@ class OCR_GUI:
             
             # Call OCR function
             self.last_call_time = time.time()
-            timestamp, values = ocr_on_roi(self.rectified_frame, roi_list, cols)
+            timestamp, values = ocr_on_roi(frame, roi_list, cols)
             # print("process_webcam_feed time = ", time.time() - self.last_call_time)
 
             # Save results to database
             for value, var_id in zip(values, self.vars_ids):
                 self.db.insert_frame_data(self.meas_id, timestamp, var_id['ID'], value)
 
-            stacked_roi_images = self.show_rois(display_rois, frame, roi_list)
+            stacked_roi_images.append(self.show_rois(display_rois, frame, roi_list, values))
             
         if display_rois:
             cv2.destroyAllWindows()
         if save_video:
-            save_frames_to_avi(stacked_roi_images)
+            save_frames_to_avi(stacked_roi_images, meas_name)
 
     def setup_database(self, meas_name, meas_comment, vars):
         
@@ -629,14 +630,13 @@ class OCR_GUI:
             self.vars_ids.append({"Variable": var, "ID": var_id})
         self.vars_ids
 
-    def show_rois(self, display_rois, frame, roi_list):
+    def show_rois(self, display_rois, frame, roi_list, values):
 
         # Display ROIs
         roi_images = []
         cropped_rois = []
         final_rois = []
         max_width = 0
-        stacked_roi_images = []
 
         # Find the maximum width among the ROI images
         for roi in roi_list:
@@ -649,7 +649,7 @@ class OCR_GUI:
             roi_width = roi_img.shape[1]
             max_width = max(max_width, roi_width)
 
-        for roi_img, roi in zip(roi_images, roi_list):
+        for roi_img, roi, value in zip(roi_images, roi_list, values):
             cropped_roi, roi_img = crop_roi(roi_img)
             cropped_roi = roi['font'].proc_pipeline(cropped_roi)
             if cropped_roi.shape[2] < 3:
@@ -662,6 +662,12 @@ class OCR_GUI:
                 border_right = (max_width - roi_width) // 2
                 border_left = max_width - roi_width - border_right
                 roi_img = cv2.copyMakeBorder(roi_img, 0, 0, border_left, border_right, cv2.BORDER_CONSTANT, value=(0, 0, 0))
+            
+            
+            # Add the detected text on the ROI
+            # Here (0, roi_img.shape[0]) will place the text on the bottom left of the ROI.
+            cv2.putText(roi_img, value, (0, roi_img.shape[0]), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255), 2)
+
             final_rois.append(roi_img)
 
             # Give border to cropped roi to match biggest roi width
@@ -674,13 +680,13 @@ class OCR_GUI:
         # Display ROIs in a new window
         stacked_roi_img = cv2.vconcat(final_rois)
         stacked_roi_img = cv2.cvtColor(stacked_roi_img, cv2.COLOR_RGB2BGR)
-        print("Stacked images: ", len(stacked_roi_images))
+        # print("Stacked images: ", len(stacked_roi_images))
         
         if display_rois:
             cv2.imshow("ROIs", stacked_roi_img)
             cv2.waitKey(1)
 
-        return stacked_roi_images
+        return stacked_roi_img
 
 
 
@@ -1476,12 +1482,17 @@ class OCR_GUI:
 
 
 
-def save_frames_to_avi(frames):
+def save_frames_to_avi(frames, meas_name):
 
     print(f"Frames in video: {len(frames)}")
+    
+    # Change name to better format
+    new_name = meas_name.lower().replace(" ", "_")
+    video_path = "videos/" + new_name + ".avi"
+
     # Define the codec and create a VideoWriter object
     # fourcc = cv2.VideoWriter_fourcc(*'XVID')
-    video_out = cv2.VideoWriter('roi_video.avi', cv2.VideoWriter_fourcc('M','J','P','G'), 1.0, (frames[0].shape[1], frames[0].shape[0]))
+    video_out = cv2.VideoWriter(video_path, cv2.VideoWriter_fourcc('M','J','P','G'), 1.0, (frames[0].shape[1], frames[0].shape[0]))
 
     # Write each frame to the video
     for frame in frames:
@@ -1489,6 +1500,7 @@ def save_frames_to_avi(frames):
 
     # Release the video writer
     video_out.release()
+    print("Video saved as ", new_name + ".avi")
 
 def resize_with_ratio(max_width, max_height, width, height):
 

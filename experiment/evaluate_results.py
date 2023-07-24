@@ -3,6 +3,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import csv
 import json
+import os
 
 def import_experiment_results(filename):
     with open(filename, 'r') as file:
@@ -48,16 +49,15 @@ def barplot_results(result_dfs):
 
 def main():
 
-    ground_truths_df = pd.read_csv("experiment/ground_truths_new.csv", dtype={"Code": str, "Ground truth": str})
+    ground_truths_df = pd.read_csv("experiment/ground_truths.csv", dtype={"Code": str, "Ground truth": str})
     # print(ground_truths_df)
 
-
-    files = ["daheng_6mm_50_3_0_0", "daheng_12mm_100_3_0_0"]
+    files = list(os.walk("experiment/exp_results"))[0][2]
     result_dfs = []
 
     for file in files:
         
-        filepath = "experiment/exp_results/" + file + ".json"
+        filepath = "experiment/exp_results/" + file
         parameters, df_results = import_experiment_results(filepath)
 
         print(f"File name: {file}")
