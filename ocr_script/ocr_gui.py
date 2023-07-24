@@ -143,7 +143,7 @@ class OCR_GUI:
         self.camera_names = [entry for entry in os.listdir("cam_calibration/cameras") if os.path.isdir(os.path.join("cam_calibration/cameras", entry))]
         self.camera_name_dropdown = ttk.Combobox(self.parameters_frame, value=self.camera_names)
         self.camera_name_dropdown.current(0)
-        self.selected_camera = self.camera_name_dropdown.get()
+        self.selected_calib = self.camera_name_dropdown.get()
         self.camera_name_dropdown.grid(row=1, column=1, padx=5, pady=5)
         self.camera_name_dropdown.bind("<<ComboboxSelected>>", lambda event: self.update_calibration())
         self.update_calibration()
@@ -335,7 +335,8 @@ class OCR_GUI:
                 self.cam = self.device_manager.open_device_by_sn(self.camera_input_dropdown.get())
                 
                 self.cam.TriggerMode.set(gx.GxSwitchEntry.OFF)
-                self.cam.ExposureTime.set(150000.0)
+                self.cam.ExposureTime.set(100000.0)
+                self.cam.BalanceWhiteAuto.set(1)
                 self.cam.Gain.set(10.0)
 
                 # get param of improving image quality
@@ -431,6 +432,9 @@ class OCR_GUI:
 
         if any(x is None for x in (self.mtx, self.dist)):
             messagebox.showerror("Error", "Failed to retrieve calibration parameters.")
+            return
+        
+        self.selected_calib = self.camera_name_dropdown.get()
         
         self.update_cam_input()
 
@@ -1458,7 +1462,7 @@ class OCR_GUI:
 
         export_content = {
             "Camera type": self.cam_type.get(),
-            "Calibration file": self.selected_camera,
+            "Calibration file": self.selected_calib,
             "Camera input": self.selected_camera_input,
             "Aruco dictionary": self.selected_aruco,
             "Aruco size": self.aruco_size,

@@ -107,6 +107,7 @@ def generate_3_numbers_image(numbers, font_path, background_color, text_color):
     return image
 
 
+
 def read_numbers():
 
     # Read the existing ground_truths.csv file
@@ -375,12 +376,6 @@ def create_slides_3by3():
     print(f"Total number of slides is {counter}")
 
             
-
-
-
-                
-
-
 
 def main():
     
