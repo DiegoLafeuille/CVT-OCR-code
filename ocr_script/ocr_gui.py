@@ -1488,23 +1488,31 @@ class OCR_GUI:
 
 def save_frames_to_avi(frames, meas_name):
 
-    print(f"Frames in video: {len(frames)}")
-    
     # Change name to better format
     new_name = meas_name.lower().replace(" ", "_")
     video_path = "videos/" + new_name + ".avi"
 
     # Define the codec and create a VideoWriter object
-    # fourcc = cv2.VideoWriter_fourcc(*'XVID')
-    video_out = cv2.VideoWriter(video_path, cv2.VideoWriter_fourcc('M','J','P','G'), 1.0, (frames[0].shape[1], frames[0].shape[0]))
+    fourcc = cv2.VideoWriter_fourcc('M','J','P','G')
+    video_out = cv2.VideoWriter(video_path, fourcc, 1.0, (frames[0].shape[1], frames[0].shape[0]))
 
-    # Write each frame to the video
+    # Resize frame to make sure they all have the same shape and write each frame to the video
+    frame_count = 0
     for frame in frames:
+        frame = cv2.resize(frame, (frames[0].shape[1], frames[0].shape[0]))
         video_out.write(frame)
 
     # Release the video writer
     video_out.release()
     print("Video saved as ", new_name + ".avi")
+
+    # Open the saved video file and count the frames
+    video = cv2.VideoCapture(video_path)
+    actual_frame_count = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
+    video.release()
+
+    print(f"Expected number of frames: {len(frames)}")
+    print(f"Actual number of frames: {actual_frame_count}")
 
 def resize_with_ratio(max_width, max_height, width, height):
 
