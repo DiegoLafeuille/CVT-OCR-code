@@ -61,15 +61,15 @@ def generate_3_numbers_image(numbers, font_path, background_color, text_color):
     bottom_background = Image.new('RGB', (image_size[0], 500), (255, 255, 255))
     image.paste(bottom_background, (0, 200))
 
-    # # Size parameter (sizes for second screen)
-    # size_big = 25 # 5.5mm
-    # size_medium = 18 # 4mm
-    # size_small = 12 # 2.5mm
+    # Size parameter (sizes for second screen)
+    size_big = 25 # 5.5mm
+    size_medium = 18 # 4mm
+    size_small = 12 # 2.5mm
 
     # # Size parameter (sizes for pc)
-    size_big = 35 # 5.5mm
-    size_medium = 25 # 4mm
-    size_small = 15 # 2.5mm
+    # size_big = 35 # 5.5mm
+    # size_medium = 25 # 4mm
+    # size_small = 15 # 2.5mm
     
     # Load fonts with different sizes
     fonts = [ImageFont.truetype(font_path, font_size) for font_size in [size_big, size_medium, size_small]]
@@ -371,7 +371,7 @@ def create_slides_3by3():
             img_code = font + color
             image = generate_3_numbers_image(numbers, font_path, background_color, text_color)
             counter += 1
-            image.save("experiment/slides_3/" + img_code + ".png")
+            image.save("experiment/slides_3_big/" + img_code + ".png")
 
     print(f"Total number of slides is {counter}")
 
