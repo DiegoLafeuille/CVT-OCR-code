@@ -41,10 +41,35 @@ def seven_seg_pipeline(image):
 
     return processed_img
 
+def normal_gray_pipeline(image):
+    '''Processing pipeline with normal grayscale.'''
 
+    img = copy.copy(image)
+
+    img = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
+
+    # Turn back to RGB format
+    img = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
+
+    return img
+
+def min_pipeline(image):
+    '''Default image processing pipeline.'''
+
+    img = copy.copy(image)
+
+    # Grayscale with gray value equal to highest value between R, G and B
+    img = np.min(img, axis=2)
+
+    # Turn back to RGB format
+    img = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
+
+    return img
 
 fonts = [
     Font("None", no_processing_pipeline, "easyocr"),
     Font("Default", default_pipeline, "easyocr"),
+    Font("Normal", normal_gray_pipeline, "easyocr"),
+    Font("Min", min_pipeline, "easyocr"),
     Font("7-segments display", seven_seg_pipeline, "tesseract"),
 ]

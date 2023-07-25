@@ -11,7 +11,6 @@ import json
 from tqdm import tqdm
 import argparse
 import time
-import screen_brightness_control as sbc
 
 # Names of each possible ArUco tag OpenCV supports
 ARUCO_DICT = {
@@ -91,7 +90,7 @@ def update_cam_input(cam_input, cam_type, calib_w, calib_h):
             
             # set exposure time
             # cam.ExposureAuto.set(1)
-            cam.ExposureTime.set(125000.0)
+            cam.ExposureTime.set(100000.0)
             
             # set auto white balance (1 = continuous, 2 = once)
             cam.BalanceWhiteAuto.set(1)
@@ -438,19 +437,20 @@ def add_margins(rois_with_box, cropped_rois, processed_cropped_rois):
 def process_img(img, code):
     
     # Get correct processing pipeline for conventional fonts and different colors
-    if code[0] != "4" and code[1] != "1":
-        process_pipeline = imgp.default_pipeline
-    elif code[0] != "4" and code[1] == "1":
-        process_pipeline = imgp.normal_gray_pipeline
+    if code[0] != "4":
+        process_pipelines = [imgp.default_pipeline, imgp.min_pipeline, imgp.normal_gray_pipeline]
 
     # Get correct processing pipeline for Let's-Go-Digital (7 segments)
     elif code[0] == "4":
-        process_pipeline = imgp.normal_gray_pipeline
+        process_pipelines = imgp.seven_seg_pipeline
 
-    return process_pipeline(img)
+    return [process_pipeline(img) for process_pipeline in process_pipelines]
 
-def call_ocr(img, code, reader):
+def call_ocr(imgs, code, reader):
     
+    # print(len(imgs))
+    # print([img.shape for img in imgs])
+
     # Check which OCR engine has to be used based on text font
     if code[0] != "4":
         # texts = reader.readtext(
@@ -462,17 +462,26 @@ def call_ocr(img, code, reader):
         #     height_ths = 0.99,
         #     batch_size = 5,
         # )
-        texts = reader.recognize(
-            img, 
-            batch_size = 5,
-            allowlist = '0123456789-+.', 
-            detail = 0, 
-            contrast_ths = 0.4,
-        )
-        text = ''.join(texts)
+            
+        # Create the format template
+        format_template = "{:<14}{:<14}{:<14}"
+
+        texts_list = []
+        for i , img in enumerate(imgs):
+            # print(f"Picture {i}")
+            texts = reader.recognize(
+                img, 
+                batch_size = 5,
+                allowlist = '0123456789-+.', 
+                detail = 0, 
+                contrast_ths = 0.4,
+            )
+            texts = ''.join(texts)
+            texts_list.append(texts)
+        text = format_template.format(*texts_list)
     
     else:
-        text = pytesseract.image_to_string(img, lang="lets", config="--psm 7 -c tessedit_char_whitelist=+-.0123456789")
+        text = pytesseract.image_to_string(imgs, lang="lets", config="--psm 7 -c tessedit_char_whitelist=+-.0123456789")
         text = text.replace("\n", "")
         text = text.replace(" ", "")
 
@@ -531,21 +540,13 @@ def main():
 
     # External parameters
     distance = args["distance"]
-    brightness = str(sbc.get_brightness(display=1)[0])
+    # luminosity = args["luminosity"]
     lighting = args["lighting"]
     h_angle = args["h_angle"]
     v_angle = args["v_angle"]
 
     # Choose result filename
-    result_filename = calib_file + "_" + distance + "_" + brightness + "_" + h_angle + "_" + v_angle + "_exp125k.json"
-    result_filepath = "experiment/exp_results/" + result_filename
-
-    # Handle if file already exists
-    if os.path.exists(result_filepath):
-        user_response = input(f"The file {result_filename} already exists.\nDo you want to overwrite it? (y/n): ")
-        if user_response.lower() != "y":
-            print("Exiting script.")
-            exit()
+    result_filename = "proc_pipelines_test.json"
 
     # Set camera parameters
     cam_input = params["Camera input"] 
@@ -556,13 +557,13 @@ def main():
     images = os.listdir("experiment/slides_3")
     
     # # Initialize JSON file
+    result_filepath = "experiment/exp_results/" + result_filename
     experiment_data = {
         "Lens": calib_file,
         "Distance": distance,
         "Horizontal angle": v_angle,
         "Vertical angle": h_angle,
-        "Lighting conditions": lighting,
-        "Screen brightness": brightness
+        "Lighting conditions": lighting
     }
     experiment_data_json = json.dumps(experiment_data, indent=4)
     with open(result_filepath, "w") as file:
@@ -603,8 +604,8 @@ def main():
         image_path = "experiment/slides_3_big/" + image
         img_code = image[:2]
 
-        # if img_code < "400":
-        #     continue
+        if img_code[0] == 4:
+            continue
 
         image = cv2.imread(image_path)
         cv2.cvtColor(image, cv2.COLOR_BGR2RGB) 
@@ -654,46 +655,45 @@ def main():
                 rois_with_box.append(roi_with_box)
                 processed_cropped_rois.append(processed_cropped_roi)
             
-
-            # Display observed ROIs
-            if display_rois:
-                images_w_margins = add_margins(rois_with_box, cropped_rois, processed_cropped_rois)
-                stacked_imgs = cv2.vconcat(images_w_margins)
-                h, w = stacked_imgs.shape[:2]
-                new_w, new_h = resize_with_ratio(600, 1000, w, h)
-                stacked_imgs = cv2.resize(stacked_imgs, (new_w,new_h))
-                stacked_imgs = cv2.cvtColor(stacked_imgs, cv2.COLOR_RGB2BGR)
-                cv2.imshow("Observed", stacked_imgs)
-                key = cv2.waitKey(1)
-                if key == 32:
-                    print("Going to next slide")
-                    break
-                elif key == 27:
-                    print("Measurement exited before end.")
-                    close_cam(cam, cam_type)
-                    cv2.destroyAllWindows()
-                    with open(result_filepath, "a") as file:
-                        file.write("]")
-                    exit()
-
-            # Call OCR
-            natural_text = [call_ocr(cropped_roi, img_code, easyocr_reader) for cropped_roi in cropped_rois]
-            natural_texts.append(natural_text)
+            # # Display observed ROIs
+            # if display_rois:
+            #     images_w_margins = add_margins(rois_with_box, cropped_rois, processed_cropped_rois)
+            #     stacked_imgs = cv2.vconcat(images_w_margins)
+            #     h, w = stacked_imgs.shape[:2]
+            #     new_w, new_h = resize_with_ratio(600, 1000, w, h)
+            #     stacked_imgs = cv2.resize(stacked_imgs, (new_w,new_h))
+            #     stacked_imgs = cv2.cvtColor(stacked_imgs, cv2.COLOR_RGB2BGR)
+            #     cv2.imshow("Observed", stacked_imgs)
+            #     key = cv2.waitKey(1)
+            #     if key == 32:
+            #         print("Going to next slide")
+            #         break
+            #     elif key == 27:
+            #         print("Measurement exited before end.")
+            #         close_cam(cam, cam_type)
+            #         cv2.destroyAllWindows()
+            #         with open(result_filepath, "a") as file:
+            #             file.write("]")
+            #         exit()
+            
+            # # Call OCR
+            # natural_text = [call_ocr(cropped_roi, img_code, easyocr_reader) for cropped_roi in cropped_rois]
+            # natural_texts.append(natural_text)
             processed_text = [call_ocr(processed_cropped_roi, img_code, easyocr_reader) for processed_cropped_roi in processed_cropped_rois]
             processed_texts.append(processed_text)
         
         # Store results in result array
-        unproc_big = [text[0] for text in natural_texts]
-        unproc_medium = [text[1] for text in natural_texts]
-        unproc_small = [text[2] for text in natural_texts]
+        # unproc_big = [text[0] for text in natural_texts]
+        # unproc_medium = [text[1] for text in natural_texts]
+        # unproc_small = [text[2] for text in natural_texts]
         proc_big = [text[0] for text in processed_texts]
         proc_medium = [text[1] for text in processed_texts]
         proc_small = [text[2] for text in processed_texts]
         result = {
             "Image code": img_code,
-            "Big": {"Unprocessed": unproc_big,"Processed": proc_big},
-            "Medium": {"Unprocessed": unproc_medium,"Processed": proc_medium},
-            "Small": {"Unprocessed": unproc_small,"Processed": proc_small}
+            "Big": proc_big,
+            "Medium": proc_medium,
+            "Small": proc_small
             }
 
         # Write the JSON data to a file

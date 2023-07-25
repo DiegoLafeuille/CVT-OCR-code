@@ -11,7 +11,6 @@ import json
 from tqdm import tqdm
 import argparse
 import time
-import screen_brightness_control as sbc
 
 # Names of each possible ArUco tag OpenCV supports
 ARUCO_DICT = {
@@ -91,7 +90,7 @@ def update_cam_input(cam_input, cam_type, calib_w, calib_h):
             
             # set exposure time
             # cam.ExposureAuto.set(1)
-            cam.ExposureTime.set(125000.0)
+            cam.ExposureTime.set(100000.0)
             
             # set auto white balance (1 = continuous, 2 = once)
             cam.BalanceWhiteAuto.set(1)
@@ -531,21 +530,13 @@ def main():
 
     # External parameters
     distance = args["distance"]
-    brightness = str(sbc.get_brightness(display=1)[0])
+    # luminosity = args["luminosity"]
     lighting = args["lighting"]
     h_angle = args["h_angle"]
     v_angle = args["v_angle"]
 
     # Choose result filename
-    result_filename = calib_file + "_" + distance + "_" + brightness + "_" + h_angle + "_" + v_angle + "_exp125k.json"
-    result_filepath = "experiment/exp_results/" + result_filename
-
-    # Handle if file already exists
-    if os.path.exists(result_filepath):
-        user_response = input(f"The file {result_filename} already exists.\nDo you want to overwrite it? (y/n): ")
-        if user_response.lower() != "y":
-            print("Exiting script.")
-            exit()
+    result_filename = calib_file + "_" + distance + "_" + lighting + "_" + h_angle + "_" + v_angle + ".json"
 
     # Set camera parameters
     cam_input = params["Camera input"] 
@@ -556,13 +547,13 @@ def main():
     images = os.listdir("experiment/slides_3")
     
     # # Initialize JSON file
+    result_filepath = "experiment/exp_results/" + result_filename
     experiment_data = {
         "Lens": calib_file,
         "Distance": distance,
         "Horizontal angle": v_angle,
         "Vertical angle": h_angle,
-        "Lighting conditions": lighting,
-        "Screen brightness": brightness
+        "Lighting conditions": lighting
     }
     experiment_data_json = json.dumps(experiment_data, indent=4)
     with open(result_filepath, "w") as file:
