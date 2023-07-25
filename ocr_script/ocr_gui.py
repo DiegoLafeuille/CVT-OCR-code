@@ -336,7 +336,7 @@ class OCR_GUI:
                 
                 self.cam.TriggerMode.set(gx.GxSwitchEntry.OFF)
                 self.cam.ExposureTime.set(100000.0)
-                self.cam.BalanceWhiteAuto.set(1)
+                # self.cam.BalanceWhiteAuto.set(1)
                 self.cam.Gain.set(10.0)
 
                 # get param of improving image quality
@@ -577,7 +577,7 @@ class OCR_GUI:
         self.setup_database(meas_name, meas_comment, vars)
 
         # Boolean to show and save video of ROIs if wished
-        save_video = True
+        save_video = False
         display_rois = True
         stacked_roi_images = []
         

@@ -92,8 +92,8 @@ def update_cam_input(cam_input, cam_type, calib_w, calib_h):
             # cam.ExposureAuto.set(1)
             cam.ExposureTime.set(100000.0)
             
-            # set auto white balance (1 = continuous, 2 = once)
-            cam.BalanceWhiteAuto.set(2)
+            # # set auto white balance (1 = continuous, 2 = once)
+            # cam.BalanceWhiteAuto.set(1)
 
             cam.Gain.set(10.0)
 
@@ -378,7 +378,11 @@ def crop_roi(img, img_code):
     contours, _ = cv2.findContours(opened, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
     # Combine all contours into a single contour
-    combined_contour = np.vstack(contours)
+    try:
+        combined_contour = np.vstack(contours)
+    except:
+        print("No contours found")
+        return img, img
 
     # Get the bounding rectangle of the combined contour
     x, y, w, h = cv2.boundingRect(combined_contour)
@@ -530,7 +534,7 @@ def main():
     v_angle = args["v_angle"]
 
     # Choose result filename
-    result_filename = calib_file + "_" + distance + "_" + lighting + "_" + h_angle + "_" + v_angle + "_test_slides_3.json"
+    result_filename = calib_file + "_" + distance + "_" + lighting + "_" + h_angle + "_" + v_angle + ".json"
 
     # Set camera parameters
     cam_input = params["Camera input"] 
@@ -562,7 +566,7 @@ def main():
     os.environ['TESSDATA_PREFIX'] = r".\ocr_script\Tesseract_sevenSegmentsLetsGoDigital\tessdata"
 
     # Show one slide to setup camera
-    image_path = "experiment/slides_3/" + images[0]
+    image_path = "experiment/slides_3_big/" + images[0]
     image = cv2.imread(image_path)
     cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
     cv2.imshow("slideshow_window", image)
@@ -585,7 +589,7 @@ def main():
     # Print the shuffled image names
     for image in images:
 
-        image_path = "experiment/slides_3/" + image
+        image_path = "experiment/slides_3_big/" + image
         img_code = image[:2]
 
         # if img_code < "400":
@@ -619,12 +623,12 @@ def main():
                 # Rectify Frame
                 rectified_frame = rectify_image(frame, params, calib_w, calib_h, mtx, dist)
             
-            if show_frame:
-                fh, fw = frame.shape[:2]
-                new_fw, new_fh = resize_with_ratio(750, 750, fw, fh)
-                frame = cv2.resize(frame, (new_fw, new_fh))
-                frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
-                cv2.imshow("Cam frame", frame)
+                if show_frame:
+                    fh, fw = frame.shape[:2]
+                    new_fw, new_fh = resize_with_ratio(750, 750, fw, fh)
+                    frame = cv2.resize(frame, (new_fw, new_fh))
+                    frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+                    cv2.imshow("Cam frame", frame)
 
             # Get ROIs
             roi_imgs = get_roi_imgs(rectified_frame, params["ROI list"])
