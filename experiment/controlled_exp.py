@@ -576,26 +576,63 @@ def main():
     pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract'
     os.environ['TESSDATA_PREFIX'] = r".\ocr_script\Tesseract_sevenSegmentsLetsGoDigital\tessdata"
 
+
+
+
     # Show one slide to setup camera
-    image_path = "experiment/slides_3_big/" + images[0]
+    image_path = "experiment/slides_3_big/" + images[2]
     image = cv2.imread(image_path)
+    img_code = "02"
     cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
     cv2.imshow("slideshow_window", image)
     cv2.setWindowTitle("slideshow_window", "Slideshow")
     cv2.waitKey(1)
 
-    # Show frame with crosshair to center camera on text
+
+
+
+
+    # Camera setup help before launching measurement
     while True:
         ret, frame = get_frame(cam, cam_type, color_correction_param, contrast_lut, gamma_lut)
+        if not ret:
+            continue
+        
+        rectified_frame = rectify_image(frame, params, calib_w, calib_h, mtx, dist)
+
+        # Show frame with crosshair to center camera on text
         fh, fw = frame.shape[:2]
         new_fw, new_fh = resize_with_ratio(750, 750, fw, fh)
         frame = cv2.resize(frame, (new_fw, new_fh))
         frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
         frame = draw_crosshair(frame)
         cv2.imshow("Center camera on text", frame)
+
+        # Show ROIs on red to adapt aperture
+        roi_imgs = get_roi_imgs(rectified_frame, params["ROI list"])
+        cropped_rois, rois_with_box, processed_cropped_rois = [], [], []
+        for roi_img in roi_imgs:
+            cropped_roi, roi_with_box = crop_roi(roi_img, img_code)
+            # Process image with corresponding pipeline
+            processed_cropped_roi = process_img(cropped_roi, img_code)
+            cropped_rois.append(cropped_roi)
+            rois_with_box.append(roi_with_box)
+            processed_cropped_rois.append(processed_cropped_roi)
+        images_w_margins = add_margins(rois_with_box, cropped_rois, processed_cropped_rois)
+        stacked_imgs = cv2.vconcat(images_w_margins)
+        h, w = stacked_imgs.shape[:2]
+        new_w, new_h = resize_with_ratio(600, 1000, w, h)
+        stacked_imgs = cv2.resize(stacked_imgs, (new_w,new_h))
+        stacked_imgs = cv2.cvtColor(stacked_imgs, cv2.COLOR_RGB2BGR)
+        cv2.imshow("Set aperture so there is no bloom on the text", stacked_imgs)
         if cv2.waitKey(1) == 32:
             cv2.destroyWindow("Center camera on text")
             break
+
+
+
+
+
 
     # Print the shuffled image names
     for image in images:
