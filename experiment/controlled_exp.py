@@ -12,6 +12,8 @@ from tqdm import tqdm
 import argparse
 import time
 import screen_brightness_control as sbc
+import matplotlib.pyplot as plt
+import pandas as pd
 
 # Names of each possible ArUco tag OpenCV supports
 ARUCO_DICT = {
@@ -489,6 +491,89 @@ def close_cam(cam, cam_type):
         cam.release()
 
 
+##################### Result display functions #####################
+
+def display_results(filepath):
+
+    ground_truths_df = pd.read_csv("experiment/ground_truths_3.csv", dtype=str)
+    _, df_results = import_experiment_results(filepath)
+
+    for index, slide in df_results.iterrows():
+        slide_truths = ground_truths_df.loc[ground_truths_df["Code"] == slide["Image code"]].to_dict(orient='records')[0]
+        # print(slide_truths)            
+
+        # print(f"Ground truth for image {slide['Image code']}: {slide_truths}")
+
+        big_unprocessed_acc = slide["Big"]["Unprocessed"].count(slide_truths["Big"])
+        big_processed_acc = slide["Big"]["Processed"].count(slide_truths["Big"])
+        df_results.at[index, "Big unproc acc"] = big_unprocessed_acc
+        df_results.at[index, "Big proc acc"] = big_processed_acc
+
+        medium_unprocessed_acc = slide["Medium"]["Unprocessed"].count(slide_truths["Medium"])
+        medium_processed_acc = slide["Medium"]["Processed"].count(slide_truths["Medium"])
+        df_results.at[index, "Medium unproc acc"] = medium_unprocessed_acc
+        df_results.at[index, "Medium proc acc"] = medium_processed_acc
+
+        small_unprocessed_acc = slide["Small"]["Unprocessed"].count(slide_truths["Small"])
+        small_processed_acc = slide["Small"]["Processed"].count(slide_truths["Small"])
+        df_results.at[index, "Small unproc acc"] = small_unprocessed_acc
+        df_results.at[index, "Small proc acc"] = small_processed_acc
+
+    average_df = df_results[[
+        "Image code", 
+        "Big unproc acc", "Big proc acc", 
+        "Medium unproc acc", "Medium proc acc", 
+        "Small unproc acc", "Small proc acc"
+    ]]
+
+    barplot_results(average_df)
+
+def import_experiment_results(filename):
+    with open(filename, 'r') as file:
+        data = json.load(file)
+
+    parameters = data[0]
+    results = data[1:]
+
+    df_results = pd.DataFrame(results)
+    return parameters, df_results
+
+def barplot_results(average_df):
+
+    labels = ['Big', 'Medium', 'Small']
+    num_rows = 4
+    num_columns = 4
+
+    fig, axs = plt.subplots(num_rows, num_columns, figsize=(15, 20), gridspec_kw={'hspace': 0.4})
+    axs = axs.flatten()
+
+    # Loop through all image codes
+    for i, image_code in enumerate(average_df["Image code"].unique()):
+        ax = axs[i]
+        x = np.array([1,2,3])  # labels positions
+        width = 0.15  # the width of the bars
+
+        # Calculate positions for each set of bars
+        bar_pos = [x - width/2, x + width/2]
+
+        averages = average_df.loc[average_df["Image code"] == image_code].to_dict(orient="records")[0]
+
+        unproc_accs = [averages[acc_type] for acc_type in ["Big unproc acc", "Medium unproc acc", "Small unproc acc"]]
+        proc_accs = [averages[acc_type] for acc_type in ["Big proc acc", "Medium proc acc", "Small proc acc"]]
+
+        ax.bar(bar_pos[0], unproc_accs, width)
+        ax.bar(bar_pos[1], proc_accs, width)
+
+        ax.set_ylabel('Accuracy', fontsize=8)
+        ax.set_title(f'Image {image_code}', fontsize=10)
+        ax.set_xticks(x)
+        ax.set_xticklabels(labels, fontsize=8)
+
+    # fig.tight_layout()
+    plt.show()
+
+
+
 # Argument parsing
 ap = argparse.ArgumentParser()
 ap.add_argument("-p", "--parameters", type=str,
@@ -756,6 +841,8 @@ def main():
 
     cycle_time = datetime.datetime.now() - start_time
     print(f"Total cycle duration = {cycle_time}")
+
+    display_results(result_filepath)
 
 
 
