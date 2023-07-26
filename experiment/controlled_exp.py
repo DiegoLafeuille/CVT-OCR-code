@@ -720,6 +720,7 @@ def main():
                     cv2.destroyAllWindows()
                     with open(result_filepath, "a") as file:
                         file.write("]")
+                    sbc.set_brightness(100, display=1)
                     exit()
 
             # Call OCR
@@ -756,6 +757,8 @@ def main():
 
     cycle_time = datetime.datetime.now() - start_time
     print(f"Total cycle duration = {cycle_time}")
+
+    sbc.set_brightness(100, display=1)
 
 
 
