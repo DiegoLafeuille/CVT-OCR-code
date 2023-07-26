@@ -91,7 +91,7 @@ def update_cam_input(cam_input, cam_type, calib_w, calib_h):
             
             # set exposure time
             # cam.ExposureAuto.set(1)
-            cam.ExposureTime.set(125000.0)
+            cam.ExposureTime.set(100000.0)
             
             # set auto white balance (1 = continuous, 2 = once)
             cam.BalanceWhiteAuto.set(1)
@@ -260,7 +260,7 @@ def get_surface_dims(surface_world_coords, calib_w, calib_h):
 def draw_crosshair(frame):
     
     # Draw crosshair
-    crosshair_color = (0, 0, 255)
+    crosshair_color = (255, 0, 0)
     crosshair_thickness = 2
     crosshair_length = 20
 
@@ -382,7 +382,7 @@ def crop_roi(img, img_code):
     try:
         combined_contour = np.vstack(contours)
     except:
-        print("No contours found")
+        # print("No contours found")
         return img, img
 
     # Get the bounding rectangle of the combined contour
@@ -497,9 +497,9 @@ ap.add_argument("-p", "--parameters", type=str,
 ap.add_argument("-d", "--distance", type=str,
                 default="50",
                 help="Distance from camera to screen")
-# ap.add_argument("-lu", "--luminosity", type=str,
-#                 default="100",
-#                 help="Screen luminosity [100%]")
+ap.add_argument("-br", "--brightness", type=str,
+                default="100",
+                help="Screen brightness [100%]")
 ap.add_argument("-li", "--lighting", type=str,
                 default="3",
                 help="Lighting conditions [1,2,3]")
@@ -531,13 +531,18 @@ def main():
 
     # External parameters
     distance = args["distance"]
-    brightness = str(sbc.get_brightness(display=1)[0])
+    brightness = args["brightness"]
     lighting = args["lighting"]
     h_angle = args["h_angle"]
     v_angle = args["v_angle"]
 
+    sbc.set_brightness(brightness, display=1)
+    if brightness != str(sbc.get_brightness(display=1)[0]):
+        print("Problem with brightness setting")
+        exit()
+
     # Choose result filename
-    result_filename = calib_file + "_" + distance + "_" + brightness + "_" + h_angle + "_" + v_angle + "_exp125k.json"
+    result_filename = calib_file + "_" + distance + "_" + brightness + "_" + h_angle + "_" + v_angle + ".json"
     result_filepath = "experiment/exp_results/" + result_filename
 
     # Handle if file already exists
@@ -606,7 +611,10 @@ def main():
         frame = cv2.resize(frame, (new_fw, new_fh))
         frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
         frame = draw_crosshair(frame)
-        cv2.imshow("Center camera on text", frame)
+        cv2.imshow("Center camera on middle text", frame)
+
+        if rectified_frame is None:
+            continue
 
         # Show ROIs on red to adapt aperture
         roi_imgs = get_roi_imgs(rectified_frame, params["ROI list"])
@@ -626,7 +634,8 @@ def main():
         stacked_imgs = cv2.cvtColor(stacked_imgs, cv2.COLOR_RGB2BGR)
         cv2.imshow("Set aperture so there is no bloom on the text", stacked_imgs)
         if cv2.waitKey(1) == 32:
-            cv2.destroyWindow("Center camera on text")
+            cv2.destroyWindow("Center camera on middle text")
+            cv2.destroyWindow("Set aperture so there is no bloom on the text")
             break
 
 
