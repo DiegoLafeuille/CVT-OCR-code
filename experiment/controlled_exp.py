@@ -75,7 +75,7 @@ def update_calibration(calib_file):
     
     return mtx, dist, calib_w, calib_h
 
-def update_cam_input(cam_input, cam_type, calib_w, calib_h):
+def update_cam_input(cam_input, cam_type, calib_w, calib_h, exposure):
     
     print(f"Changing camera to input {cam_input}")
 
@@ -93,7 +93,7 @@ def update_cam_input(cam_input, cam_type, calib_w, calib_h):
             
             # set exposure time
             # cam.ExposureAuto.set(1)
-            cam.ExposureTime.set(100000.0)
+            cam.ExposureTime.set(exposure * 1000)
             
             # set auto white balance (1 = continuous, 2 = once)
             cam.BalanceWhiteAuto.set(1)
@@ -582,6 +582,9 @@ ap.add_argument("-p", "--parameters", type=str,
 ap.add_argument("-d", "--distance", type=str,
                 default="50",
                 help="Distance from camera to screen")
+ap.add_argument("-ex", "--exposure", type=int,
+                default="100",
+                help="Exposure time [100 ms]")
 ap.add_argument("-br", "--brightness", type=str,
                 default="100",
                 help="Screen brightness [100%]")
@@ -616,18 +619,24 @@ def main():
 
     # External parameters
     distance = args["distance"]
+    exposure = args["exposure"]
     brightness = args["brightness"]
     lighting = args["lighting"]
     h_angle = args["h_angle"]
     v_angle = args["v_angle"]
 
     sbc.set_brightness(brightness, display=1)
-    if brightness != str(sbc.get_brightness(display=1)[0]):
+    actual_br = str(sbc.get_brightness(display=1)[0])
+    if brightness != actual_br:
         print("Problem with brightness setting")
+        print(brightness, " vs ", actual_br)
         exit()
 
     # Choose result filename
-    result_filename = calib_file + "_" + distance + "_" + brightness + "_" + h_angle + "_" + v_angle + ".json"
+    exp = ""
+    if exposure != 100:
+        exp = f"_exp{str(exposure)}k"
+    result_filename = calib_file + "_" + distance + "_" + brightness + "_" + h_angle + "_" + v_angle + exp + ".json"
     result_filepath = "experiment/exp_results/" + result_filename
 
     # Handle if file already exists
@@ -640,7 +649,7 @@ def main():
     # Set camera parameters
     cam_input = params["Camera input"] 
     cam_type = params["Camera type"]
-    cam, color_correction_param, contrast_lut, gamma_lut = update_cam_input(cam_input, cam_type, calib_w, calib_h)
+    cam, color_correction_param, contrast_lut, gamma_lut = update_cam_input(cam_input, cam_type, calib_w, calib_h, exposure)
 
     # Get the list of image names in the folder
     images = os.listdir("experiment/slides_3")
