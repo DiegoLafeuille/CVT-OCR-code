@@ -103,7 +103,7 @@ ap.add_argument("-c", "--camera", type=str, default= "daheng_25mm", #required=Tr
 	help="Name of camera geting calibrated")
 ap.add_argument("-sl", "--square-length", type=float, default= 0.02,
 	help="Length of one square in m")
-ap.add_argument("-ml", "--marker-length", type=float, default= 0.0135,
+ap.add_argument("-ml", "--marker-length", type=float, default= 0.014,
 	help="Length of one marker in m")
 ap.add_argument("-W", "--width", type=int, default= 20,
 	help="Number of columns of board")
@@ -126,8 +126,6 @@ def main():
     aruco_dict = cv2.aruco.getPredefinedDictionary(ARUCO_DICT[args.dictionary])
     board = cv2.aruco.CharucoBoard((chess_width, chess_height), square_len, marker_len, aruco_dict)
 
-    print(f"Marker length = {marker_len}")
-
     # Get calibration pictures
     images = glob.glob(imgs_path + '/' + '*.' + 'png')
     print(f"{len(images)} pictures found")
@@ -144,12 +142,28 @@ def main():
     for i in range(len(images)):
         print(f"Reprojection error for image {i} {images[i]}: {perViewErrors[i]}")
 
+    # # Export into pickle format calibration data from external calibration 
+    # ret = 0.5173
+    # mtx = [
+    #     [1.3824e+04, 0, 2.0101e+03],
+    #     [0, 1.3823e+04, 1.5653e+03],
+    #     [0, 0, 1]
+    # ]
+    # dist = [0.0698, 0.3995, 0, 0, 0]
+    # rvecs = None
+    # tvecs = None
+    # calib_w = 4024
+    # calib_h = 3036
+    # print("Exporting external parameters!")
+
 
     calibration_params = {"ret": ret, "mtx": mtx, "dist": dist, "rvecs": rvecs, "tvecs": tvecs, "calib_w": calib_w, "calib_h": calib_h}
 
     # save the parameters in a pickle file
     with open('cam_calibration/cameras/' + camera + '/calibration_params.pickle', 'wb') as f:
         pickle.dump(calibration_params, f)
+    
+
     
 if __name__ == '__main__':
     main()
