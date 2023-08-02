@@ -658,8 +658,8 @@ def main():
     experiment_data = {
         "Lens": calib_file,
         "Distance": distance,
-        "Horizontal angle": v_angle,
-        "Vertical angle": h_angle,
+        "Horizontal angle": h_angle,
+        "Vertical angle": v_angle,
         "Lighting conditions": lighting,
         "Screen brightness": brightness
     }
