@@ -50,3 +50,20 @@ class OCRDatabase:
     
     def close(self):
         self.conn.close()
+
+def setup_database(meas_name, meas_comment, vars):
+        
+    # Connect to database and create tables if non-existent
+    db = OCRDatabase("ocr_script/ocr_database.db")
+    db.create_tables()
+
+    # Insert new measurement
+    meas_id = db.insert_measurement(meas_name, meas_comment)
+
+    # Insert variables
+    variable_ids = []
+    for var in vars:
+        var_id = db.insert_variable(meas_id, var)
+        variable_ids.append({"Variable": var, "ID": var_id})
+
+    return db, meas_id, variable_ids

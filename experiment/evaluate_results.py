@@ -94,7 +94,7 @@ def main():
     # print(ground_truths_df)
 
     # files = list(os.walk("experiment/exp_results"))[0][2]
-    files = ["daheng_12mm_100_0_45_0.json", "daheng_12mm_100_0_45_0_exp125k.json"]
+    files = ["daheng_6mm_35_0_0_45.json", "daheng_6mm_35_0_0_45_detect_test.json"]
     # files = ["daheng_12mm_100_0_0_0.json"]
     result_dfs = []
 

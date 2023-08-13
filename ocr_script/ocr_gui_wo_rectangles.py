@@ -1,7 +1,6 @@
 import tkinter as tk
 from tkinter import ttk
 from tkinter import messagebox
-from tkinter import filedialog
 import numpy as np
 import cv2
 from cv2 import aruco
@@ -47,55 +46,11 @@ ARUCO_DICT = {
 }
 
 
-class Rectangle:
-
-    def __init__(self, canvas, roi_list_container, rect_number, coordinates = (), variable = "", only_numbers = True, font_id = 0):
-        
-        self.canvas = canvas
-        self.roi_list_container = roi_list_container
-        self.rect_number = rect_number
-        self.coordinates = coordinates
-        self.isactive = True
-        
-        # Rectangle drawing parameters
-        self.drawing_label = ttk.Label(self.canvas, text=str(rect_number), font=('Arial', 12), background='white', foreground='black')
-        drawing_label_x = (self.coordinates[0] + self.coordinates[2]) // 2
-        drawing_label_y = self.coordinates[1] - 15
-        self.drawing_label.place(x=drawing_label_x, y=drawing_label_y, anchor='center')
-        self.rectangle_drawing = self.canvas.create_rectangle(self.coordinates, outline='red', width=1)
-
-        # ROI list components
-        self.var_label = ttk.Label(self.roi_list_container, text=str(rect_number), font=('calibre',10, 'bold'))
-        self.var_label.grid(row=rect_number+1,column=0)
-        self.variable = tk.StringVar(value=variable)
-        self.rect_entry = ttk.Entry(self.roi_list_container,textvariable = self.variable, font=('calibre',10,'normal'))
-        self.rect_entry.grid(row=rect_number+1,column=1)
-        self.only_numbers = tk.BooleanVar(value=only_numbers)
-        self.only_num_checkbox = ttk.Checkbutton(self.roi_list_container, variable=self.only_numbers)
-        self.only_num_checkbox.grid(row=rect_number+1,column=2)
-        self.font_type_dropdown = ttk.Combobox(self.roi_list_container, value=[font.name for font in img_processing.fonts])
-        self.font_type_dropdown.current(font_id)
-        self.font_type_dropdown.grid(row=rect_number+1,column=3)
-        self.delete_btn = ttk.Button(self.roi_list_container,text = 'Delete', command=lambda: self.delete_rect())
-        self.delete_btn.grid(row=rect_number+1,column=4)
-
-    def delete_rect(self):
-        '''Function deleting the components related to this Rectangle object'''
-
-        self.isactive = False
-        self.drawing_label.destroy()
-        self.canvas.delete(self.rectangle_drawing)
-        self.var_label.destroy()
-        self.rect_entry.destroy()
-        self.only_num_checkbox.destroy()
-        self.font_type_dropdown.destroy()
-        self.delete_btn.destroy()
-
-
-
 class OCR_GUI:
 
     def __init__(self, master):
+
+        self.ocr_on = False
 
         # Main window
         self.master = master
@@ -132,16 +87,14 @@ class OCR_GUI:
         self.method_label = ttk.Label(self.general_params_frame, text="Select method to use:")
         self.one_marker_radio_btn = ttk.Radiobutton(self.general_params_frame, text="One-marker method", variable=self.marker_method, value="one_marker", command=self.update_method_params)
         self.four_markers_radio_btn = ttk.Radiobutton(self.general_params_frame, text="Four-marker method", variable=self.marker_method, value="four_markers", command=self.update_method_params)
-        ## Uncomment to reveal in GUI
-        # self.method_label.grid(row=1, column=0, padx=30, pady=(5,10))
-        # self.one_marker_radio_btn.grid(row=1, column=1, padx=5, pady=(5,10))
-        # self.four_markers_radio_btn.grid(row=1, column=2, padx=(5,30), pady=(5,10))
+        self.method_label.grid(row=1, column=0, padx=30, pady=(5,10))
+        self.one_marker_radio_btn.grid(row=1, column=1, padx=5, pady=(5,10))
+        self.four_markers_radio_btn.grid(row=1, column=2, padx=(5,30), pady=(5,10))
+        self.surface_line_eqs = []
 
         # One marker method parameter initialisation
         self.last_rvec = None
         self.last_tvec = None
-        self.surface_line_eqs = []
-        self.surface_world_coords = []
 
         # Image canvas
         self.canvas_max_width = 750
@@ -159,13 +112,10 @@ class OCR_GUI:
         self.indicate_surface_button.pack(side=tk.LEFT, padx=15)
 
         # "Download surface and ROI data" button for single aruco method
-        self.dl_button = ttk.Button(button_container, text="Export surface and ROI parameters", command=self.export_file_name_entry_window)
+        self.dl_button = ttk.Button(button_container, text="Download surface and ROI data", command=self.export_file_name_entry_window)
         self.dl_button.pack(side=tk.LEFT, padx=15)
 
-        # "Import existing parameters" button 
-        refresh_button = ttk.Button(button_container, text="Import existing parameters", command=self.import_parameters)
-        refresh_button.pack(side=tk.LEFT, padx=15)
-
+        self.surface_world_coords = []
 
         ############################### Right frame ###############################
         
@@ -185,15 +135,17 @@ class OCR_GUI:
         refresh_button = ttk.Button(self.parameters_frame, text="Refresh", command=self.refresh_cam_inputs)
         refresh_button.grid(row=0, column=2, padx=5, pady=(20, 5))
 
-        # Camera calibration dropdown menu
+        # Camera choice dropdown menu
         self.cam = None
-        self.cam_calib_label = ttk.Label(self.parameters_frame, text="Calibration folder:")
-        self.cam_calib_label.grid(row=1, column=0, padx=5, pady=5)
-        self.calibration_names = [entry for entry in os.listdir("cam_calibration/cameras") if os.path.isdir(os.path.join("cam_calibration/cameras", entry))]
-        self.calibration_name_dropdown = ttk.Combobox(self.parameters_frame, value=self.calibration_names)
-        self.calibration_name_dropdown.current(0)
-        self.calibration_name_dropdown.grid(row=1, column=1, padx=5, pady=5)
-        self.calibration_name_dropdown.bind("<<ComboboxSelected>>", lambda event: self.update_calibration())
+        self.cam_label = ttk.Label(self.parameters_frame, text="Calibration folder:")
+        self.cam_label.grid(row=1, column=0, padx=5, pady=5)
+        
+        self.camera_names = [entry for entry in os.listdir("cam_calibration/cameras") if os.path.isdir(os.path.join("cam_calibration/cameras", entry))]
+        self.camera_name_dropdown = ttk.Combobox(self.parameters_frame, value=self.camera_names)
+        self.camera_name_dropdown.current(0)
+        self.selected_calib = self.camera_name_dropdown.get()
+        self.camera_name_dropdown.grid(row=1, column=1, padx=5, pady=5)
+        self.camera_name_dropdown.bind("<<ComboboxSelected>>", lambda event: self.update_calibration())
         self.update_calibration()
 
         # OCR frequence input
@@ -213,22 +165,20 @@ class OCR_GUI:
 
         # Aruco marker choice dropdown menu
         self.aruco_dict_label = ttk.Label(self.parameters_frame, text="Aruco dictionary:")
+        self.aruco_dict_label.grid(row=3, column=0, padx=5, pady=5)
         self.aruco_dropdown = ttk.Combobox(self.parameters_frame, value=list(ARUCO_DICT.keys()))
         self.aruco_dropdown.current(0)
         self.selected_aruco = self.aruco_dropdown.get()
-        ## Uncomment to reveal in GUI
-        # self.aruco_dict_label.grid(row=3, column=0, padx=5, pady=5)
-        # self.aruco_dropdown.grid(row=3, column=1, padx=5, pady=5)
+        self.aruco_dropdown.grid(row=3, column=1, padx=5, pady=5)
 
         # Aruco size input
         self.aruco_size_label = ttk.Label(self.parameters_frame, text="Aruco marker size [meters]:")
+        self.aruco_size_label.grid(row=4, column=0, padx=5, pady=5)
         self.aruco_size_entry = ttk.Entry(self.parameters_frame)
         self.aruco_size = 0.014
         self.aruco_size_entry.insert(-1, "0.014")
         self.aruco_size_entry.bind("<Return>", lambda event: on_aruco_size_entry())
-        ## Uncomment to reveal in GUI
-        # self.aruco_size_label.grid(row=4, column=0, padx=5, pady=5)
-        # self.aruco_size_entry.grid(row=4, column=1, padx=5, pady=5)
+        self.aruco_size_entry.grid(row=4, column=1, padx=5, pady=5)
 
         def on_aruco_size_entry():
             try:
@@ -242,13 +192,12 @@ class OCR_GUI:
 
         # Square size input
         self.square_size_label = ttk.Label(self.parameters_frame, text="Board square size [meters]:")
+        self.square_size_label.grid(row=5, column=0, padx=5, pady=5)
         self.square_size_entry = ttk.Entry(self.parameters_frame)
         self.square_size = 0.02
         self.square_size_entry.insert(-1, "0.02")
         self.square_size_entry.bind("<Return>", lambda event: on_square_size_entry())
-        ## Uncomment to reveal in GUI
-        # self.square_size_label.grid(row=5, column=0, padx=5, pady=5)
-        # self.square_size_entry.grid(row=5, column=1, padx=5, pady=5)
+        self.square_size_entry.grid(row=5, column=1, padx=5, pady=5)
 
         def on_square_size_entry():
             try:
@@ -294,19 +243,18 @@ class OCR_GUI:
         self.saved_surfaces_counter = 0
         self.show_rectified_camera()
 
-
-
-        ######################## ROI parameters ########################
-
         # Rectangle drawings on canvas
         self.rectangles = []
+        self.rectangles_drawing = []
+        self.rect_drawing_labels = []
+        self.labels = []
         self.canvas.bind("<ButtonPress-1>", self.on_button_press)
         self.canvas.bind("<B1-Motion>", self.on_move_press)
         self.canvas.bind("<ButtonRelease-1>", self.on_button_release)
 
         # Scrollable container for list of rectangle variables
         self.list_container = tk.Frame(self.right_frame, highlightbackground = "grey", highlightthickness = 1)
-        self.list_canvas = tk.Canvas(self.list_container, width=500)
+        self.list_canvas = tk.Canvas(self.list_container, width=500, height=150)
         scrollbar = ttk.Scrollbar(self.list_container, command=self.list_canvas.yview)
         self.list_frame = tk.Frame(self.list_canvas)
         self.list_frame.bind(
@@ -324,13 +272,18 @@ class OCR_GUI:
         # Create labels for each column
         ttk.Label(self.list_frame, text="Nr.").grid(row=0, column=0, padx=(10,5), pady=15)
         ttk.Label(self.list_frame, text="Variable name").grid(row=0, column=1, padx=5, pady=15)
-        ttk.Label(self.list_frame, text="Numbers only").grid(row=0, column=2, padx=5, pady=15)
+        ttk.Label(self.list_frame, text="Only Numerals").grid(row=0, column=2, padx=5, pady=15)
         ttk.Label(self.list_frame, text="Font type").grid(row=0, column=3, padx=5, pady=15)
+        self.rect_labels = []
+        self.rect_entries = []
+        self.only_nums_list = []
+        self.rect_char_checkboxs = []
+        self.font_dropdowns = []
+        self.rect_delete = []
 
         # Start/Stop OCR button
         self.start_button = ttk.Button(self.right_frame, text="Start OCR", command=self.toggle_ocr)
         self.start_button.pack(side=tk.BOTTOM, anchor='s', padx=25, pady=15)
-        self.ocr_on = False
         self.results = []
 
         self.master.update()
@@ -463,9 +416,9 @@ class OCR_GUI:
                 self.update_cam_input()
 
     def update_calibration(self):
-        print(f"Updating calibration to {self.calibration_name_dropdown.get()}")
+        print(f"Updating calibration to {self.camera_name_dropdown.get()}")
         # Path to pickle file
-        calib_file_path = "cam_calibration/cameras/" + self.calibration_name_dropdown.get() + "/calibration_params.pickle"
+        calib_file_path = "cam_calibration/cameras/" + self.camera_name_dropdown.get() + "/calibration_params.pickle"
 
         # Load the calibration parameters from the pickle file
         with open(calib_file_path, 'rb') as f:
@@ -486,6 +439,8 @@ class OCR_GUI:
 
         if not isinstance(self.dist, np.ndarray):
             self.dist = np.array(self.dist) 
+
+        self.selected_calib = self.camera_name_dropdown.get()
         
         self.update_cam_input()
 
@@ -554,95 +509,43 @@ class OCR_GUI:
         
         return ret, frame
 
-    def show_camera(self):
-
-        self.master.update()
-
-        ret, frame = self.get_frame()
-        if not ret:
-            self.video_label.after(50, self.show_camera)
-            return
-
-        # Get the width and height of the actual image
-        height, width = frame.shape[:2]
-        
-        # Calculate the scale factor to keep the aspect ratio and limit the height to 300
-        scale = min(1, 200 / height)
-        
-        # Resize the original image
-        self.resize_width = int(width * scale)
-        self.resize_height = int(height * scale)
-            
-        aruco_dict = cv2.aruco.getPredefinedDictionary(ARUCO_DICT[self.aruco_dropdown.get()])
-
-
-        corners, ids, _ = cv2.aruco.detectMarkers(frame, aruco_dict)
-
-        # Draw A square around the markers
-        if np.all(ids is not None): 
-            for i in range(len(ids)):
-                # get marker corners
-                pts = np.int32(corners[i][0])
-                # draw lines between corners
-                cv2.line(frame, tuple(pts[0]), tuple(pts[1]), (0, 255, 0), thickness=8)
-                cv2.line(frame, tuple(pts[1]), tuple(pts[2]), (0, 255, 0), thickness=8)
-                cv2.line(frame, tuple(pts[2]), tuple(pts[3]), (0, 255, 0), thickness=8)
-                cv2.line(frame, tuple(pts[3]), tuple(pts[0]), (0, 255, 0), thickness=8)
-
-        frame_resized = cv2.resize(frame, (self.resize_width, self.resize_height), interpolation=cv2.INTER_AREA)
-        
-        img = Image.fromarray(frame_resized)
-        # Convert image to PhotoImage
-        imgtk = ImageTk.PhotoImage(image=img)
-        self.video_label.imgtk = imgtk
-        self.video_label.configure(image=imgtk)
-        
-        # Repeat after an interval to capture continuously
-        self.video_label.after(50, self.show_camera)
-
     def toggle_ocr(self):
 
         # Start OCR
         if not self.ocr_on:
-            
-            roi_list = self.create_roi_list()
-            
+            vars = [var.get() for var in self.rect_entries if var is not None]
             # Verify that all entries have variable names which are different and not empty
-            variables = [roi['variable'] for roi in roi_list]
-            if len(set(variables)) != len(variables) or not all(variables):
+            if len(set(vars)) != len(vars) or not all(vars):
                 messagebox.showerror("Error", "All variables need names, and they need to be different.")
-                return
+            else:
+                self.ocr_on = True
+                self.start_button.config(text="Stop OCR")
+                self.canvas.unbind("<ButtonPress-1>")
+                self.canvas.unbind("<B1-Motion>")
+                self.canvas.unbind("<ButtonRelease-1>")
 
-            self.ocr_on = True
-            self.start_button.config(text="Stop OCR")
-            
-            # Block creation of new ROIs during OCR
-            self.canvas.unbind("<ButtonPress-1>")
-            self.canvas.unbind("<B1-Motion>")
-            self.canvas.unbind("<ButtonRelease-1>")
+                roi_list = self.create_rois()
+                
+                # Setup database tables
+                self.measurement_name_entry_window(vars)
+                self.master.wait_window(self.meas_info_window)
 
-            # Setup database tables
-            self.measurement_name_entry_window()
-            self.master.wait_window(self.meas_info_window)
-
-            # Start OCR function thread
-            meas_name = self.meas_name_var.get()
-            meas_comment = self.meas_name_com.get()
-            self.ocr_thread = threading.Thread(target=self.call_ocr, daemon=True, args=[roi_list, variables, meas_name, meas_comment])
-            self.ocr_thread.start()
+                # Start OCR function thread
+                meas_name = self.meas_name_var.get()
+                meas_comment = self.meas_name_com.get()
+                self.ocr_thread = threading.Thread(target=self.call_ocr, daemon=True, args=[roi_list, vars, meas_name, meas_comment])
+                self.ocr_thread.start()
 
         # Stop OCR
         else:
             self.ocr_on = False
             self.ocr_thread.join()
             self.start_button.config(text="Start OCR")
-
-            # Allow creation of ROIs again
             self.canvas.bind("<ButtonPress-1>", self.on_button_press)
             self.canvas.bind("<B1-Motion>", self.on_move_press)
             self.canvas.bind("<ButtonRelease-1>", self.on_button_release)       
 
-    def measurement_name_entry_window(self):
+    def measurement_name_entry_window(self, vars):
         '''Create a new window to enter the name of the measurement (for database)'''
 
         self.meas_info_window = tk.Toplevel(self.master)
@@ -673,10 +576,11 @@ class OCR_GUI:
         submit_button = ttk.Button(self.meas_info_window, text="Submit", command=lambda: self.meas_info_window.destroy())
         submit_button.pack(padx=10, pady=10)
 
-    def call_ocr(self, roi_list, variables, meas_name, meas_comment):
- 
+    def call_ocr(self, roi_list, vars, meas_name, meas_comment):
+
+        
         # Setup database tables
-        db, measurement_id, variable_ids = database.setup_database(meas_name, meas_comment, variables)
+        self.setup_database(meas_name, meas_comment, vars)
 
         # Boolean to show and save video of ROIs if wished
         save_video = False
@@ -710,8 +614,8 @@ class OCR_GUI:
             # print("process_webcam_feed time = ", time.time() - self.last_call_time)
 
             # Save results to database
-            for value, var_id in zip(values, variable_ids):
-                db.insert_frame_data(measurement_id, timestamp, var_id['ID'], value)
+            for value, var_id in zip(values, self.vars_ids):
+                self.db.insert_frame_data(self.meas_id, timestamp, var_id['ID'], value)
 
             stacked_roi_images.append(self.show_rois(display_rois, frame, roi_list, values))
             
@@ -719,6 +623,22 @@ class OCR_GUI:
             cv2.destroyAllWindows()
         if save_video:
             save_frames_to_avi(stacked_roi_images, meas_name)
+
+    def setup_database(self, meas_name, meas_comment, vars):
+        
+        # Connect to database and create tables if non-existence
+        self.db = database.OCRDatabase("ocr_script/ocr_database.db")
+        self.db.create_tables()
+
+        # Insert new measurement
+        self.meas_id = self.db.insert_measurement(meas_name, meas_comment)
+
+        # Insert variables
+        self.vars_ids = []
+        for var in vars:
+            var_id = self.db.insert_variable(self.meas_id, var)
+            self.vars_ids.append({"Variable": var, "ID": var_id})
+        self.vars_ids
 
     def show_rois(self, display_rois, frame, roi_list, values):
 
@@ -782,27 +702,25 @@ class OCR_GUI:
 
     ######################## ROI list functions ########################
 
-    def create_roi_list(self):
+    def create_rois(self):
 
-        active_rois = [roi for roi in self.rectangles if roi.isactive]
-        roi_frame_coordinates = []
+        # Create list of ROIs
+        rois = []
+        # Adjust ROI coordinates from canvas size to frame size
+        for i, rectangle in enumerate(self.rectangles):
+            if rectangle is None:
+                rois.append(None)
+                continue
+
+            adjusted_x1 = int(rectangle[0] * self.new_width / self.new_canvas_width)
+            adjusted_y1 = int(rectangle[1] * self.new_height / self.new_canvas_height)
+            adjusted_x2 = int(rectangle[2] * self.new_width / self.new_canvas_width)
+            adjusted_y2 = int(rectangle[3] * self.new_height / self.new_canvas_height)
+            roi = (adjusted_x1, adjusted_y1, adjusted_x2, adjusted_y2)
+
+            rois.append(roi)
         
-        # Adjust ROI coordinates from current canvas size to current actual frame size
-        for i, roi in enumerate(active_rois):
-            adjusted_x1 = int(roi.coordinates[0] * self.new_width / self.new_canvas_width)
-            adjusted_y1 = int(roi.coordinates[1] * self.new_height / self.new_canvas_height)
-            adjusted_x2 = int(roi.coordinates[2] * self.new_width / self.new_canvas_width)
-            adjusted_y2 = int(roi.coordinates[3] * self.new_height / self.new_canvas_height)
-            adjusted_coordinates = (adjusted_x1, adjusted_y1, adjusted_x2, adjusted_y2)
-            roi_frame_coordinates.append(adjusted_coordinates)
-        
-        roi_list = [{
-            'variable': roi.variable.get(), 
-            'ROI': roi_coords, 
-            'only_numbers': roi.only_numbers.get(), 
-            'font': img_processing.fonts[roi.font_type_dropdown.current()]} 
-            for roi, roi_coords in zip(active_rois, roi_frame_coordinates)]
-        
+        roi_list = [{'variable': var.get(), 'ROI': roi, 'only_nums': only_nums.get(), 'font': img_processing.fonts[font_type.current()]} for var, roi, only_nums, font_type in zip(self.rect_entries, rois, self.only_nums_list, self.font_dropdowns) if roi is not None]
         return roi_list
 
     def on_button_press(self, event):
@@ -824,6 +742,7 @@ class OCR_GUI:
 
         # create a rectangle with initial coordinates
         self.rect = self.canvas.create_rectangle(self.start_x, self.start_y, self.start_x, self.start_y, outline='red', width=1)
+        self.rectangles_drawing.append(self.rect)
 
     def on_move_press(self, event):
         
@@ -858,20 +777,122 @@ class OCR_GUI:
         if x2 > canvas_width:
             x2 = canvas_width
 
+        
         y2 = int(self.canvas.canvasy(event.y))
         if y2 < 0:
             y2 = 0
         if y2 > canvas_height:
             y2 = canvas_height
 
-        self.canvas.delete(self.rect)
-        rectangle = Rectangle(
-            canvas= self.canvas,
-            roi_list_container= self.list_frame,
-            rect_number= len(self.rectangles), 
-            coordinates= (x1, y1, x2, y2)
-        )
-        self.rectangles.append(rectangle)
+        self.rectangles.append((x1, y1, x2, y2))
+        self.canvas.coords(self.rect, x1, y1, x2, y2)
+
+        # create a new label for the rectangle number
+        rect_number = len(self.rectangles)
+        label_x = (x1 + x2) // 2
+        label_y = y1 - 15
+        label = ttk.Label(self.canvas, text=str(rect_number), font=('Arial', 12), background='white', foreground='black')
+        label.place(x=label_x, y=label_y, anchor='center')
+        self.rect_drawing_labels.append(label)
+
+        self.add_variable_list_elem(rect_number)
+
+    def add_variable_list_elem(self, rect_number):
+
+        # Declaring string variable for storing variable name
+        rect_var=tk.StringVar()
+
+        # Creating a label for name using widget Label
+        rect_label = ttk.Label(self.list_frame, text=str(rect_number), font=('calibre',10, 'bold'))
+        self.rect_labels.append(rect_label)
+
+        # Creating an entry for input name using widget Entry
+        rect_entry = ttk.Entry(self.list_frame,textvariable = rect_var, font=('calibre',10,'normal'))
+        self.rect_entries.append(rect_entry)
+
+        # Creating a checkbox to ask if only numerals are expected as characters
+        only_nums = tk.BooleanVar(value=True)
+        rect_char_checkbox = ttk.Checkbutton(self.list_frame, variable=only_nums)
+        self.rect_char_checkboxs.append(rect_char_checkbox)
+        self.only_nums_list.append(only_nums)
+
+        # Creating a dropdown to choose the font type
+        self.font_type_dropdown = ttk.Combobox(self.list_frame, value=[font.name for font in img_processing.fonts])
+        self.font_type_dropdown.current(0)
+        self.font_dropdowns.append(self.font_type_dropdown)
+
+        # Creating delete button
+        delete_btn = ttk.Button(self.list_frame,text = 'Delete', command=lambda: self.delete_rect(rect_number, delete_btn))
+        self.rect_delete.append(delete_btn)
+
+        # Placing the label and entry in the required position using grid method
+        self.rect_labels[-1].grid(row=rect_number,column=0)
+        self.rect_entries[-1].grid(row=rect_number,column=1)
+        self.rect_char_checkboxs[-1].grid(row=rect_number,column=2)
+        self.font_dropdowns[-1].grid(row=rect_number,column=3)
+        self.rect_delete[-1].grid(row=rect_number,column=4)
+
+    def delete_rect(self, rect_number, btn):
+    # Deletes a rectangle and its list element if respective button clicked
+
+        rect_id = self.rectangles_drawing[rect_number-1]
+        self.canvas.delete(rect_id)
+        label_id = self.rect_drawing_labels[rect_number-1]
+        label_id.destroy()
+        self.rectangles[rect_number-1] = None
+        self.rect_labels[rect_number-1].destroy()
+        self.rect_entries[rect_number-1].destroy()
+        self.rect_entries[rect_number-1] = None
+        self.rect_char_checkboxs[rect_number-1].destroy()
+        self.only_nums_list[rect_number-1] = None
+        self.font_dropdowns[rect_number-1].destroy()
+        btn.destroy()
+
+    def show_camera(self):
+
+        self.master.update()
+
+        ret, frame = self.get_frame()
+        if not ret:
+            self.video_label.after(50, self.show_camera)
+            return
+
+        # Get the width and height of the actual image
+        height, width = frame.shape[:2]
+        
+        # Calculate the scale factor to keep the aspect ratio and limit the height to 300
+        scale = min(1, 200 / height)
+        
+        # Resize the original image
+        self.resize_width = int(width * scale)
+        self.resize_height = int(height * scale)
+            
+        aruco_dict = cv2.aruco.getPredefinedDictionary(ARUCO_DICT[self.aruco_dropdown.get()])
+
+
+        corners, ids, _ = cv2.aruco.detectMarkers(frame, aruco_dict)
+
+        # Draw A square around the markers
+        if np.all(ids is not None): 
+            for i in range(len(ids)):
+                # get marker corners
+                pts = np.int32(corners[i][0])
+                # draw lines between corners
+                cv2.line(frame, tuple(pts[0]), tuple(pts[1]), (0, 255, 0), thickness=8)
+                cv2.line(frame, tuple(pts[1]), tuple(pts[2]), (0, 255, 0), thickness=8)
+                cv2.line(frame, tuple(pts[2]), tuple(pts[3]), (0, 255, 0), thickness=8)
+                cv2.line(frame, tuple(pts[3]), tuple(pts[0]), (0, 255, 0), thickness=8)
+
+        frame_resized = cv2.resize(frame, (self.resize_width, self.resize_height), interpolation=cv2.INTER_AREA)
+        
+        img = Image.fromarray(frame_resized)
+        # Convert image to PhotoImage
+        imgtk = ImageTk.PhotoImage(image=img)
+        self.video_label.imgtk = imgtk
+        self.video_label.configure(image=imgtk)
+        
+        # Repeat after an interval to capture continuously
+        self.video_label.after(50, self.show_camera)
  
 
     ################## Rectified perspective functions ##################
@@ -1088,7 +1109,6 @@ class OCR_GUI:
 
         # Create new window
         self.indic_surface_window = tk.Toplevel(self.master)
-        self.indic_surface_window.state('zoomed') 
         self.indic_surface_window.title("Indicate Target Surface")
 
         self.surface_polygon = None
@@ -1387,7 +1407,7 @@ class OCR_GUI:
         return pixel_coords
 
 
-    #################### Functions for import/export of parameters ####################
+    #################### Functions for export button ####################
 
     def verify_export_conditions(self):
 
@@ -1395,13 +1415,13 @@ class OCR_GUI:
             messagebox.showerror("Error", "Indicate target surface area before exporting data.")
             return False
         
-        if not self.rectangles:
+        if not self.rect_entries:
             messagebox.showerror("Error", "Indicate some regions of interest.")
             return False
         
         # Verify that all entries have variable names which are different and not empty
-        variables = [rectangle.variable.get() for rectangle in self.rectangles if rectangle.isactive]
-        if len(set(variables)) != len(variables) or not all(variables):
+        vars = [var.get() for var in self.rect_entries if var is not None]
+        if len(set(vars)) != len(vars) or not all(vars):
             messagebox.showerror("Error", "All variables need names, and they need to be different.")
             return False
         
@@ -1448,14 +1468,14 @@ class OCR_GUI:
 
         export_content = {
             "Camera type": self.cam_type.get(),
-            "Calibration file": self.calibration_name_dropdown.get(),
+            "Calibration file": self.selected_calib,
             "Camera input": self.selected_camera_input,
             "Aruco dictionary": self.selected_aruco,
             "Aruco size": self.aruco_size,
             "Square size": self.square_size,
             "Charuco width": self.charuco_width,
             "Charuco heigt": self.charuco_height,
-            "ROI list": self.create_roi_list(),
+            "ROI list": self.create_rois(),
             "Target surface world coordinates": self.surface_world_coords,
         }
 
@@ -1466,73 +1486,7 @@ class OCR_GUI:
         print("Exporting data to:", filename + ".pickle")
 
         self.download_window.destroy()
-       
-    def import_parameters(self):
-        
-        # Get parameter file
-        filename = filedialog.askopenfilename()
-        print("Importing parameters from ", filename)
-        
-        # Load the GUI parameters from the pickle file
-        with open(filename, 'rb') as f:
-            params = pickle.load(f)
-        
-        # Camera type
-        self.cam_type.set(params["Camera type"])
-        self.selected_cam_type = self.cam_type.get()
-
-        # Camera input
-        self.camera_input_dropdown.set(params["Camera input"])
-        self.selected_camera_input = self.camera_input_dropdown.get()
-
-        # Calibration file
-        self.calibration_name_dropdown.set(params["Calibration file"])
-        self.update_calibration()
-
-
-        ## Update charuco parameters
-        # Aruco dictionary
-        # Aruco size
-        # Square size
-        # Charuco width
-        # Charuco height
-
-        # Target surface world coordinates
-        self.surface_world_coords = params["Target surface world coordinates"]
-        self.saved_surfaces_counter = 2
-        self.new_width, self.new_height = self.get_surface_dims_one_marker()
-        self.new_canvas_width, self.new_canvas_height = resize_with_ratio(self.canvas_max_width, self.canvas_max_height, self.new_width, self.new_height)
-
-        ## Update ROIs
-        # Delete existing rectangles
-        for rectangle in self.rectangles:
-            rectangle.delete_rect()
-
-        self.rectangles = []
-        rois = params["ROI list"]
-        for roi in rois:
-
-            # Adjust rectangle coordinates from frame size to canvas size
-            adjuted_x0 = int(roi['ROI'][0] / self.new_width * self.new_canvas_width) 
-            adjuted_y0 = int(roi['ROI'][1] / self.new_height * self.new_canvas_height)
-            adjuted_x1 = int(roi['ROI'][2] / self.new_width * self.new_canvas_width) +1
-            adjuted_y1 = int(roi['ROI'][3] / self.new_height * self.new_canvas_height) +1
-            adjusted_coords = (adjuted_x0, adjuted_y0, adjuted_x1, adjuted_y1)
-
-            # Find ID of ROI font
-            font_list = [font.name for font in img_processing.fonts]
-            font_id = font_list.index(roi['font'].name)
-
-            rectangle = Rectangle(
-                canvas= self.canvas,
-                roi_list_container= self.list_frame,
-                rect_number= len(self.rectangles), 
-                coordinates= adjusted_coords,
-                variable= roi['variable'],
-                only_numbers= roi['only_numbers'],
-                font_id= font_id
-            )
-            self.rectangles.append(rectangle)
+    
 
 
 
@@ -1591,7 +1545,7 @@ def resize_with_ratio(max_width, max_height, width, height):
 
 
 root = tk.Tk()
-root.state('zoomed') 
 root.bind('<Escape>', lambda e: root.quit())
+root.geometry = ("1080x720")
 gui = OCR_GUI(root)
 root.mainloop()

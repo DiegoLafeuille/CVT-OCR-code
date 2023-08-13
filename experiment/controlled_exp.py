@@ -72,6 +72,12 @@ def update_calibration(calib_file):
 
     if any(x is None for x in (mtx, dist)):
         print("Error: Failed to retrieve calibration parameters.")
+
+    if not isinstance(mtx, np.ndarray):
+        mtx = np.array(mtx) 
+
+    if not isinstance(dist, np.ndarray):
+        dist = np.array(dist) 
     
     return mtx, dist, calib_w, calib_h
 
@@ -96,7 +102,7 @@ def update_cam_input(cam_input, cam_type, calib_w, calib_h, exposure):
             cam.ExposureTime.set(exposure * 1000)
             
             # set auto white balance (1 = continuous, 2 = once)
-            cam.BalanceWhiteAuto.set(1)
+            # cam.BalanceWhiteAuto.set(1)
 
             cam.Gain.set(10.0)
 
@@ -364,6 +370,8 @@ def get_roi_imgs(frame, roi_list):
 
 def crop_roi(img, img_code):
     
+    # return img, img
+
     # Convert the image to grayscale
     gray = np.max(img, axis=2)
 
@@ -447,7 +455,7 @@ def process_img(img, code):
 
     # Get correct processing pipeline for Let's-Go-Digital (7 segments)
     elif code[0] == "4":
-        process_pipeline = imgp.normal_gray_pipeline
+        process_pipeline = imgp.seven_seg_pipeline
 
     return process_pipeline(img)
 
@@ -606,7 +614,7 @@ def main():
     start_time = datetime.datetime.now()
 
     # Debugging image display variables
-    display_rois = False
+    display_rois = True
     show_frame = False
 
     # Get GUI parameters for automated script
@@ -637,6 +645,7 @@ def main():
     if exposure != 100:
         exp = f"_exp{str(exposure)}k"
     result_filename = calib_file + "_" + distance + "_" + brightness + "_" + h_angle + "_" + v_angle + exp + ".json"
+    # result_filename = calib_file + "_" + distance + "_" + brightness + "_" + h_angle + "_" + v_angle + exp + "_detect.json"
     result_filepath = "experiment/exp_results/" + result_filename
 
     # Handle if file already exists

@@ -38,35 +38,39 @@ def ocr_on_roi(frame, roi_list, cols):
 
         # Process image with appropriate processing pipeline
         img_processing_pipeline =  roi['font'].proc_pipeline
-        processed_roi = img_processing_pipeline(cropped_img)
+        try:
+            processed_roi = img_processing_pipeline(cropped_img)
+        except:
+            processed_roi = img_processing_pipeline(roi_img)
+
 
         # Call ocr_function with appropriate engine
         if roi['font'].ocr_engine == "easyocr":
-            text = easyocr_ocr(processed_roi, roi['only_nums'])
+            text = easyocr_ocr(processed_roi, roi['only_numbers'])
         elif roi['font'].ocr_engine == "tesseract":
-            text = tesseract_ocr(processed_roi, roi['only_nums'])
+            text = tesseract_ocr(processed_roi, roi['only_numbers'])
         texts.append(text)
 
     return timestamp, texts
 
-def easyocr_ocr(img, only_nums):
+def easyocr_ocr(img, only_numbers):
     
-    if only_nums:
+    if only_numbers:
         
-        # texts = easyocr_reader.readtext(
-        #     img, 
-        #     allowlist = '0123456789-+.', 
-        #     link_threshold=0.99, 
-        #     detail = 0, 
-        #     width_ths = 0.99,
-        #     height_ths = 0.99,
-        # )
-        texts = easyocr_reader.recognize(
+        texts = easyocr_reader.readtext(
             img, 
-            batch_size = 5,
             allowlist = '0123456789-+.', 
+            link_threshold=0.99, 
             detail = 0, 
+            width_ths = 0.99,
+            height_ths = 0.99,
         )
+        # texts = easyocr_reader.recognize(
+        #     img, 
+        #     batch_size = 5,
+        #     allowlist = '0123456789-+.', 
+        #     detail = 0, 
+        # )
     
     else:
         
@@ -87,14 +91,17 @@ def easyocr_ocr(img, only_nums):
     text = ''.join(texts)
     return text if text else "No text recognized"
     
-def tesseract_ocr(img, only_nums):
-    if only_nums:
+def tesseract_ocr(img, only_numbers):
+    if only_numbers:
         text = pytesseract.image_to_string(img, lang="lets", config="--psm 7 -c tessedit_char_whitelist=+-,.0123456789")
     else:
         text = pytesseract.image_to_string(img, lang="lets", config="--psm 7")
     return text if text else "No text recognized"
 
 def crop_roi(img):
+
+    return img, img
+
     
     # Convert the image to grayscale
     gray = np.max(img, axis=2)
@@ -134,8 +141,8 @@ def crop_roi(img):
     # Draw the bounding box on the image
     image_with_box = np.copy(img)
     cv2.rectangle(image_with_box, (x, y), (x + w, y + h), (0, 0, 255), 6)
-    # Draw contours on the image
-    cv2.drawContours(image_with_box, contours, -1, (0, 0, 0), 3)
+    # # Draw contours on the image
+    # cv2.drawContours(image_with_box, contours, -1, (0, 0, 0), 3)
     
     # Crop the image using the bounding rectangle
     cropped_image = img[y:y+h, x:x+w]
