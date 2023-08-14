@@ -127,6 +127,34 @@ class OCR_GUI:
         self.device_manager = gx.DeviceManager()
         self.selected_cam_type = self.cam_type.get()
 
+        # Daheng camera settings frame
+        self.daheng_settings_frame = tk.Frame(self.general_params_frame)
+        self.daheng_settings_frame.grid(row=1, column=0, columnspan = 3)
+
+        # Entry widget for exposure time
+        self.exposure_time_label = ttk.Label(self.daheng_settings_frame, text="Exposure Time [ms]:")
+        self.exposure_time_label.grid(row=0, column=0, padx=5, pady=(5, 5))
+        self.exposure_time_entry = ttk.Entry(self.daheng_settings_frame)
+        self.exposure_time_entry.grid(row=0, column=1, padx=5, pady=(5, 5))
+        self.exposure = 100
+        self.exposure_time_entry.insert(-1, "100")
+        self.exposure_time_entry.bind("<Return>", lambda event: on_exposure_entry())
+
+        def on_exposure_entry():
+            try:    
+                exposure_time = int(self.exposure_time_entry.get())
+                if 1 <= exposure_time <= 999:
+                    self.exposure = exposure_time
+                    self.cam.ExposureTime.set(self.exposure * 1000)
+                else:
+                    messagebox.showerror("Error", "Exposure time must be between 1 and 999")
+            except ValueError:
+                messagebox.showerror("Error", "Exposure time must be an integer")
+
+        # Button for auto balance white
+        self.autobalancewhite_button = ttk.Button(self.daheng_settings_frame, text="Auto Balance White", command=lambda: self.cam.BalanceWhiteAuto.set(1))
+        self.autobalancewhite_button.grid(row=0, column=2, padx=15, pady=(5, 5))
+
         # Method radio buttons
         self.marker_method = tk.StringVar(value="one_marker")
         self.method_label = ttk.Label(self.general_params_frame, text="Select method to use:")
@@ -158,13 +186,13 @@ class OCR_GUI:
         self.indicate_surface_button = ttk.Button(button_container, text="Indicate display surface", command=self.indicate_surface_window_init)
         self.indicate_surface_button.pack(side=tk.LEFT, padx=15)
 
-        # "Download surface and ROI data" button for single aruco method
-        self.dl_button = ttk.Button(button_container, text="Export surface and ROI parameters", command=self.export_file_name_entry_window)
-        self.dl_button.pack(side=tk.LEFT, padx=15)
+        # "Export surface and ROI data" button for single aruco method
+        self.export_button = ttk.Button(button_container, text="Export surface and ROI parameters", command=self.export_file_name_entry_window)
+        self.export_button.pack(side=tk.LEFT, padx=15)
 
         # "Import existing parameters" button 
-        refresh_button = ttk.Button(button_container, text="Import existing parameters", command=self.import_parameters)
-        refresh_button.pack(side=tk.LEFT, padx=15)
+        self.import_button = ttk.Button(button_container, text="Import existing parameters", command=self.import_parameters)
+        self.import_button.pack(side=tk.LEFT, padx=15)
 
 
         ############################### Right frame ###############################
@@ -182,8 +210,8 @@ class OCR_GUI:
         self.selected_camera_input = self.camera_input_dropdown.get()
         self.camera_input_dropdown.grid(row=0, column=1, padx=5, pady=(20, 5))
         self.camera_input_dropdown.bind("<<ComboboxSelected>>", lambda event: self.update_cam_input())
-        refresh_button = ttk.Button(self.parameters_frame, text="Refresh", command=self.refresh_cam_inputs)
-        refresh_button.grid(row=0, column=2, padx=5, pady=(20, 5))
+        self.import_button = ttk.Button(self.parameters_frame, text="Refresh", command=self.refresh_cam_inputs)
+        self.import_button.grid(row=0, column=2, padx=5, pady=(20, 5))
 
         # Camera calibration dropdown menu
         self.cam = None
@@ -382,7 +410,7 @@ class OCR_GUI:
                 self.cam = self.device_manager.open_device_by_sn(self.camera_input_dropdown.get())
                 
                 self.cam.TriggerMode.set(gx.GxSwitchEntry.OFF)
-                self.cam.ExposureTime.set(100000.0)
+                self.cam.ExposureTime.set(self.exposure * 1000)
                 # self.cam.BalanceWhiteAuto.set(1)
                 self.cam.Gain.set(10.0)
 
@@ -498,6 +526,7 @@ class OCR_GUI:
         if self.selected_cam_type == "daheng":
             self.cam.stream_off()
             self.cam.close_device()
+            self.daheng_settings_frame.grid_remove()
         else:
             self.cam.release()
 
@@ -507,6 +536,7 @@ class OCR_GUI:
             self.update_cam_input()
             self.update_calibration()
             self.selected_cam_type = self.cam_type.get()
+            self.daheng_settings_frame.grid(row=1, column=0, columnspan = 3)
         except Exception as e:
             print("Exception handling")
             self.cam_type.set(self.selected_cam_type)
@@ -516,7 +546,7 @@ class OCR_GUI:
         method = self.marker_method.get()
         if method == "one_marker":
             self.indicate_surface_button.pack(side=tk.BOTTOM, padx=15, pady=5)
-            self.dl_button.pack(side=tk.BOTTOM, padx=15, pady=5)
+            self.export_button.pack(side=tk.BOTTOM, padx=15, pady=5)
             self.aruco_size_label.grid_configure(padx=5, pady=5)
             self.aruco_size_entry.grid_configure(padx=5, pady=5)
             self.square_size_label.grid(row=5, column=0, padx=5, pady=5)
@@ -526,7 +556,7 @@ class OCR_GUI:
             self.charuco_height_entry.grid(row=6, column=2, padx=5, pady=(5,20))
         else:
             self.indicate_surface_button.pack_forget()
-            self.dl_button.pack_forget()
+            self.export_button.pack_forget()
             self.aruco_size_label.grid_configure(padx=5, pady=(5,20))
             self.aruco_size_entry.grid_configure(padx=5, pady=(5,20))
             self.square_size_label.grid_remove()
@@ -1138,8 +1168,8 @@ class OCR_GUI:
         self.update_indic_surf_canvas()
 
     def update_indic_surf_canvas(self):
-
-        self.indic_surface_window.update()
+        
+        self.indic_surface_window.update_idletasks()
 
         ret, frame = self.get_frame()
         height, width = frame.shape[:2]
@@ -1179,12 +1209,6 @@ class OCR_GUI:
         if self.display_surface_on:
             self.display_surface()
 
-        # # Undistort image
-        # newcameramtx, roi = cv2.getOptimalNewCameraMatrix(self.mtx, self.dist, (width,height), 1, (width,height))
-        # frame = cv2.undistort(frame, self.mtx, self.dist, None, newcameramtx)
-        # x, y, width, height = roi
-        # frame = frame[y:y+height, x:x+width]
-
         max_width = 1280
         max_height = 720
         resized_width, resized_height = resize_with_ratio(max_width, max_height, width, height)
@@ -1222,6 +1246,8 @@ class OCR_GUI:
             self.move_shape = self.indic_surf_canvas.create_polygon(self.coords,
                                                     event.x, event.y,
                                                     outline='red', width=2)
+        
+        self.indic_surface_window.update_idletasks()
 
     def save_coords(self):
 
