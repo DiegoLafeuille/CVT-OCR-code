@@ -1,0 +1,327 @@
+EasyOCR inaccurate results:
+Image 0ab03218ae07b67b:
+Expected: rezgza, actual: rfgza, lv_distance: 2
+Expected: ., actual: , lv_distance: 1
+Expected: you, actual: , lv_distance: 3
+Expected: spurs:, actual: , lv_distance: 6
+Expected: the, actual: , lv_distance: 3
+Expected: game, actual: , lv_distance: 4
+Expected: is, actual: , lv_distance: 2
+Expected: about, actual: , lv_distance: 5
+Expected: glory:, actual: , lv_distance: 6
+Expected: ., actual: , lv_distance: 1
+Expected: 01spurs, actual: , lv_distance: 7
+Expected: :10, actual: , lv_distance: 3
+Expected: dare, actual: , lv_distance: 4
+Expected: ., actual: , lv_distance: 1
+Expected: ., actual: , lv_distance: 1
+Expected: 27, actual: , lv_distance: 2
+Expected: ., actual: , lv_distance: 1
+Expected: lane, actual: line, lv_distance: 1
+Expected: 5, actual: , lv_distance: 1
+Expected: ., actual: , lv_distance: 1
+Expected: 8, actual: , lv_distance: 1
+Expected: 9, actual: , lv_distance: 1
+Expected: 0, actual: , lv_distance: 1
+Expected: ., actual: , lv_distance: 1
+
+Image 6d1a7302c3e32ad3:
+Expected: ., actual: , lv_distance: 1
+Expected: ., actual: , lv_distance: 1
+Expected: ., actual: , lv_distance: 1
+Expected: ., actual: , lv_distance: 1
+Expected: os, actual: , lv_distance: 2
+Expected: ., actual: , lv_distance: 1
+Expected: team, actual: , lv_distance: 4
+Expected: ., actual: , lv_distance: 1
+
+Image 006b9f2a7fd32e6b:
+Expected: starbucks, actual: kabusa, lv_distance: 6
+Expected: coffee, actual: incorpey, lv_distance: 5
+Expected: arbuc, actual: rbu , lv_distance: 2
+Expected: mike, actual: mke, lv_distance: 1
+Expected: starbucks, actual: , lv_distance: 9
+Expected: coffee, actual: , lv_distance: 6
+Expected: 550, actual: , lv_distance: 3
+Expected: ., actual: , lv_distance: 1
+Expected: ., actual: , lv_distance: 1
+Expected: you're, actual: , lv_distance: 6
+Expected: ., actual: , lv_distance: 1
+Expected: ., actual: , lv_distance: 1
+Expected: ., actual: , lv_distance: 1
+Expected: ., actual: , lv_distance: 1
+Expected: ., actual: , lv_distance: 1
+
+Image 998825c4826102f6:
+Expected: greinke, actual: greinkel, lv_distance: 1
+Expected: ., actual: , lv_distance: 1
+Expected: ., actual: k, lv_distance: 1
+
+Image 374a5499a99921da:
+
+Image b8159048dd064f36:
+Expected: acer, actual: aer, lv_distance: 1
+Expected: dts, actual: du, lv_distance: 2
+Expected: u, actual: , lv_distance: 1
+Expected: uemonchan.com, actual: demonchancom, lv_distance: 2
+Expected: s, actual: 3, lv_distance: 1
+
+Image d36b2a62c3cadc16:
+Expected: htc, actual: otc, lv_distance: 1
+
+Image 2ce2d1d7d0692e45:
+Expected: flashlight, actual: flashlightactioncubel=, lv_distance: 12
+Expected: action, actual: ashction, lv_distance: 2
+Expected: cubelelt, actual: lsicubelen, lv_distance: 5
+Expected: make, actual: tomake), lv_distance: 3
+Expected: your, actual: (iiayour), lv_distance: 5
+Expected: robot, actual: eoboty, lv_distance: 2
+Expected: light, actual: furaighte, lv_distance: 5
+Expected: up!, actual: yp!, lv_distance: 1
+Expected: add, actual: tadd), lv_distance: 2
+Expected: to, actual: 'to, lv_distance: 1
+Expected: any, actual: 94pany, lv_distance: 3
+Expected: cubelets, actual: dnto e auto `cubelets), lv_distance: 14
+Expected: kit, actual: skit, lv_distance: 1
+Expected: extend, actual: tsveatend'due, lv_distance: 8
+Expected: your, actual: avour, lv_distance: 2
+Expected: robot., actual: 7utobot,, lv_distance: 4
+Expected: cub, actual: cu6vousands and thci, lv_distance: 18
+Expected: thousands, actual: 1thousands |, lv_distance: 3
+Expected: ., actual: , lv_distance: 1
+
+Image 4279fe0a8e259b12:
+Expected: one, actual: , lv_distance: 3
+Expected: one, actual: , lv_distance: 3
+Expected: one, actual: , lv_distance: 3
+Expected: one, actual: , lv_distance: 3
+Expected: pound, actual: , lv_distance: 5
+Expected: pound, actual: 2, lv_distance: 5
+Expected: cus, actual: , lv_distance: 3
+Expected: et, actual: , lv_distance: 2
+Expected: ., actual: , lv_distance: 1
+
+Image c95288460e3f1a35:
+
+Image 7a490f6f2613b03a:
+Expected: il, actual: , lv_distance: 2
+Expected: giappone, actual: giapponb, lv_distance: 1
+Expected: mostri, actual: mcstri, lv_distance: 1
+Expected: creature,, actual: crbature ,, lv_distance: 2
+Expected: e, actual: , lv_distance: 1
+Expected: wow, actual: gocv, lv_distance: 3
+Expected: museo, actual: muse6, lv_distance: 1
+Expected: viale, actual: , lv_distance: 5
+Expected: campanic, actual: campame, lv_distance: 3
+Expected: 12., actual: , lv_distance: 3
+Expected: mikano, actual: , lv_distance: 6
+Expected: ., actual: , lv_distance: 1
+Expected: ., actual: , lv_distance: 1
+Expected: ., actual: , lv_distance: 1
+Expected: ., actual: , lv_distance: 1
+Expected: ., actual: , lv_distance: 1
+Expected: fondazione, actual: , lv_distance: 10
+Expected: cariplo, actual: c 0 fip | 0, lv_distance: 8
+Expected: epson, actual: , lv_distance: 5
+Expected: lyra, actual: , lv_distance: 4
+Expected: ., actual: , lv_distance: 1
+Expected: ., actual: , lv_distance: 1
+Expected: ., actual: , lv_distance: 1
+Expected: ., actual: , lv_distance: 1
+Expected: labirinto, actual: labirinio, lv_distance: 1
+Expected: ., actual: , lv_distance: 1
+Expected: ., actual: , lv_distance: 1
+Expected: tanuki, actual: takuk a, lv_distance: 3
+Expected: ., actual: , lv_distance: 1
+Expected: 02, actual: , lv_distance: 2
+Expected: www.museowow.it, actual: umuscowowil, lv_distance: 7
+Expected: marted, actual: , lv_distance: 6
+Expected: a, actual: , lv_distance: 1
+Expected: venerdi, actual: venen, lv_distance: 3
+Expected: 15.00-19.00/, actual: 4500-19.00 /, lv_distance: 3
+Expected: sabalo, actual: sab ato, lv_distance: 2
+Expected: e, actual: , lv_distance: 1
+Expected: domenica, actual: , lv_distance: 8
+Expected: 15.00-20.00/, actual: 4500-20 00 /, lv_distance: 4
+Expected: lunedl, actual: , lv_distance: 6
+Expected: chiuso, actual: , lv_distance: 6
+Expected: ingresso, actual: l, lv_distance: 8
+Expected: libero, actual: , lv_distance: 6
+Expected: a, actual: , lv_distance: 1
+Expected: maggio-, actual: maggio, lv_distance: 1
+Expected: 1o, actual: , lv_distance: 2
+Expected: ., actual: , lv_distance: 1
+Expected: +, actual: , lv_distance: 1
+Expected: ., actual: , lv_distance: 1
+Expected: ., actual: , lv_distance: 1
+Expected: ., actual: , lv_distance: 1
+Expected: ., actual: , lv_distance: 1
+Expected: ., actual: , lv_distance: 1
+Expected: ., actual: , lv_distance: 1
+Expected: ., actual: , lv_distance: 1
+Expected: ., actual: , lv_distance: 1
+Expected: ., actual: , lv_distance: 1
+Expected: ., actual: , lv_distance: 1
+Expected: ., actual: , lv_distance: 1
+Expected: ., actual: , lv_distance: 1
+Expected: del, actual: d6l, lv_distance: 1
+
+Image 5fecfba4f170398d:
+Expected: .caer;, actual: caer, lv_distance: 2
+Expected: living, actual: 4okiins, lv_distance: 5
+Expected: dream, actual: aream, lv_distance: 1
+Expected: d, actual: 0, lv_distance: 1
+
+Image 70ebaa69329f7a04:
+Expected: conan, actual: {jnne, lv_distance: 4
+Expected: on, actual: 6n, lv_distance: 1
+Expected: a, actual: , lv_distance: 1
+Expected: shtick, actual: s 6s, lv_distance: 5
+Expected: o'brien, actual: 0jrl |, lv_distance: 6
+Expected: merit, actual: verlt, lv_distance: 2
+Expected: award, actual: , lv_distance: 5
+Expected: ceop, actual: , lv_distance: 4
+Expected: art, actual: , lv_distance: 3
+Expected: cope, actual: (cope, lv_distance: 1
+Expected: minneapolis,, actual: mminneapolis, lv_distance: 2
+Expected: mn, actual: , lv_distance: 2
+Expected: natural, actual: , lv_distance: 7
+Expected: colors, actual: cobn , lv_distance: 4
+Expected: lot, actual: , lv_distance: 3
+Expected: 01, actual: , lv_distance: 2
+Expected: amateur, actual: , lv_distance: 7
+Expected: minnesota, actual: , lv_distance: 9
+Expected: state, actual: , lv_distance: 5
+Expected: fair, actual: gair, lv_distance: 1
+Expected: 2009, actual: , lv_distance: 4
+
+Image c3e59f3c4c59ed09:
+
+Image 9b1480cf4a006424:
+Expected: morty's, actual: mbtv'cv, lv_distance: 5
+Expected: pub, actual: 'cd, lv_distance: 3
+Expected: thursday, actual: thursdav, lv_distance: 1
+Expected: special, actual: spectal, lv_distance: 1
+Expected: to, actual: 10, lv_distance: 2
+Expected: 1, actual: , lv_distance: 1
+Expected: til, actual: , lv_distance: 3
+
+Image c8f39f516e5c200a:
+Expected: smokey, actual: shord, lv_distance: 4
+Expected: smokey, actual: moke, lv_distance: 2
+Expected: smokey, actual: oke, lv_distance: 3
+Expected: together, actual: togethert, lv_distance: 1
+Expected: smokey, actual: ssmokey, lv_distance: 1
+Expected: bear, actual: bean, lv_distance: 1
+Expected: of, actual: , lv_distance: 2
+Expected: so, actual: , lv_distance: 2
+Expected: attention., actual: attention, lv_distance: 1
+Expected: okey, actual: , lv_distance: 4
+Expected: dressed, actual: dressee, lv_distance: 1
+Expected: in, actual: , lv_distance: 2
+Expected: a, actual: , lv_distance: 1
+Expected: ranger's, actual: ranger', lv_distance: 1
+Expected: jeans,, actual: jeans;, lv_distance: 1
+Expected: a, actual: , lv_distance: 1
+Expected: shovel,, actual: shovel, lv_distance: 1
+Expected: is, actual: , lv_distance: 2
+Expected: of, actual: , lv_distance: 2
+Expected: in, actual: , lv_distance: 2
+Expected: world,, actual: world, lv_distance: 1
+Expected: is, actual: , lv_distance: 2
+Expected: protected, actual: pprotected, lv_distance: 1
+Expected: of, actual: , lv_distance: 2
+Expected: ., actual: , lv_distance: 1
+Expected: ., actual: , lv_distance: 1
+Expected: ., actual: , lv_distance: 1
+Expected: forest, actual: , lv_distance: 6
+
+Image 12fb007ca12020fb:
+Expected: ., actual: , lv_distance: 1
+Expected: ., actual: , lv_distance: 1
+Expected: ., actual: , lv_distance: 1
+Expected: ., actual: , lv_distance: 1
+Expected: 29, actual: 10, lv_distance: 2
+Expected: 30, actual: , lv_distance: 2
+Expected: 31, actual: , lv_distance: 2
+Expected: 1, actual: , lv_distance: 1
+Expected: ., actual: , lv_distance: 1
+Expected: ., actual: , lv_distance: 1
+Expected: ., actual: , lv_distance: 1
+Expected: ., actual: , lv_distance: 1
+Expected: ., actual: , lv_distance: 1
+
+Image 1282dde05bfdfb13:
+Expected: indian, actual: 1, lv_distance: 6
+Expected: treaty, actual: , lv_distance: 6
+Expected: n, actual: , lv_distance: 1
+Expected: ., actual: , lv_distance: 1
+Expected: 6, actual: , lv_distance: 1
+Expected: 1876, actual: , lv_distance: 4
+Expected: peaceful, actual: l, lv_distance: 7
+Expected: co-existence, actual: l, lv_distance: 12
+Expected: mutual, actual: ;l, lv_distance: 5
+Expected: respect, actual: ], lv_distance: 7
+
+Image dd0dfded83ffbdf6:
+Expected: return, actual: retpin, lv_distance: 2
+Expected: to, actual: , lv_distance: 2
+Expected: ann, actual: , lv_distance: 3
+Expected: national, actual: natioral, lv_distance: 1
+Expected: mich.,, actual: hich:, lv_distance: 3
+Expected: bank,, actual: bank, lv_distance: 1
+Expected: if, actual: , lv_distance: 2
+Expected: not, actual: , lv_distance: 3
+Expected: within, actual: , lv_distance: 6
+Expected: 5, actual: , lv_distance: 1
+Expected: days., actual: daye, lv_distance: 2
+Expected: 3967e, actual: 1k, lv_distance: 5
+Expected: sausing, actual: , lv_distance: 7
+Expected: mich, actual: , lv_distance: 4
+Expected: at., actual: , lv_distance: 3
+Expected: davis, actual: , lv_distance: 5
+Expected: seey, actual: mc", lv_distance: 4
+Expected: ann, actual: , lv_distance: 3
+Expected: ., actual: , lv_distance: 1
+Expected: ., actual: , lv_distance: 1
+Expected: 30, actual: , lv_distance: 2
+Expected: 4, actual: , lv_distance: 1
+Expected: pm, actual: , lv_distance: 2
+Expected: 1889, actual: i85 $, lv_distance: 4
+Expected: mich, actual: , lv_distance: 4
+Expected: 352, actual: , lv_distance: 3
+Expected: 22, actual: , lv_distance: 2
+Expected: 1863, actual: , lv_distance: 4
+Expected: -1882, actual: , lv_distance: 5
+Expected: 1, actual: , lv_distance: 1
+Expected: united, actual: , lv_distance: 6
+Expected: stat, actual: , lv_distance: 4
+Expected: 2, actual: , lv_distance: 1
+Expected: sent, actual: , lv_distance: 4
+Expected: two, actual: , lv_distance: 3
+Expected: ., actual: , lv_distance: 1
+
+Image bf77cf72780e3c1b:
+Expected: dda, actual: ida, lv_distance: 1
+Expected: 1, actual: , lv_distance: 1
+Expected: ., actual: , lv_distance: 1
+Expected: ., actual: , lv_distance: 1
+Expected: ., actual: , lv_distance: 1
+Expected: ., actual: , lv_distance: 1
+Expected: ., actual: , lv_distance: 1
+Expected: ., actual: , lv_distance: 1
+Expected: ., actual: , lv_distance: 1
+Expected: ., actual: , lv_distance: 1
+Expected: esp, actual: , lv_distance: 3
+Expected: n, actual: , lv_distance: 1
+Expected: s, actual: 6, lv_distance: 1
+Expected: ., actual: , lv_distance: 1
+Expected: ., actual: , lv_distance: 1
+Expected: ., actual: , lv_distance: 1
+Expected: ., actual: , lv_distance: 1
+Expected: ., actual: , lv_distance: 1
+Expected: ., actual: , lv_distance: 1
+Expected: ., actual: , lv_distance: 1
+Expected: reyrc, actual: eht, lv_distance: 4
+Expected: ., actual: , lv_distance: 1
+
