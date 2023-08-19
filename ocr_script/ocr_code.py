@@ -56,14 +56,11 @@ def ocr_on_roi(frame, roi_list, cols):
 def easyocr_ocr(img, only_numbers):
     
     if only_numbers:
-        
         texts = easyocr_reader.readtext(
             img, 
             allowlist = '0123456789-+.', 
-            link_threshold=0.99, 
-            detail = 0, 
-            width_ths = 0.99,
-            height_ths = 0.99,
+            link_threshold=0, 
+            detail = 0,
         )
         # texts = easyocr_reader.recognize(
         #     img, 
@@ -71,23 +68,22 @@ def easyocr_ocr(img, only_numbers):
         #     allowlist = '0123456789-+.', 
         #     detail = 0, 
         # )
+
     
     else:
-        
-        # texts = easyocr_reader.readtext(
-        #     img, 
-        #     link_threshold=0.99, 
-        #     detail = 0, 
-        #     width_ths = 0.99,
-        #     height_ths = 0.99,
-        # )
-        texts = easyocr_reader.recognize(
+        texts = easyocr_reader.readtext(
             img, 
-            batch_size = 5,
+            link_threshold=0, 
             detail = 0, 
-            # contrast_ths = 0.4,
         )
-        
+        # texts = easyocr_reader.recognize(
+        #     img, 
+        #     batch_size = 5,
+        #     detail = 0, 
+        #     # contrast_ths = 0.4,
+        # )
+
+    print(texts)
     text = ''.join(texts)
     return text if text else "No text recognized"
     
