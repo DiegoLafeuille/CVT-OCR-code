@@ -152,7 +152,7 @@ class OCR_GUI:
                 messagebox.showerror("Error", "Exposure time must be an integer")
 
         # Button for auto balance white
-        self.autobalancewhite_button = ttk.Button(self.daheng_settings_frame, text="Auto Balance White", command=lambda: self.cam.BalanceWhiteAuto.set(1))
+        self.autobalancewhite_button = ttk.Button(self.daheng_settings_frame, text="Auto Balance White", command=lambda: self.cam.BalanceWhiteAuto.set(2))
         self.autobalancewhite_button.grid(row=0, column=2, padx=15, pady=(5, 5))
 
         # Method radio buttons
@@ -244,7 +244,7 @@ class OCR_GUI:
         self.aruco_dropdown = ttk.Combobox(self.parameters_frame, value=list(ARUCO_DICT.keys()))
         self.aruco_dropdown.current(0)
         self.selected_aruco = self.aruco_dropdown.get()
-        ## Uncomment to reveal in GUI
+        # # Uncomment to reveal in GUI
         # self.aruco_dict_label.grid(row=3, column=0, padx=5, pady=5)
         # self.aruco_dropdown.grid(row=3, column=1, padx=5, pady=5)
 
@@ -634,6 +634,14 @@ class OCR_GUI:
 
         # Start OCR
         if not self.ocr_on:
+
+            # Setup database tables
+            self.measurement_name_entry_window()
+            self.master.wait_window(self.meas_info_window)
+
+            # Check if measurement name has been succesfully set
+            if self.meas_name is None:
+                return
             
             roi_list = self.create_roi_list()
             
@@ -651,14 +659,10 @@ class OCR_GUI:
             self.canvas.unbind("<B1-Motion>")
             self.canvas.unbind("<ButtonRelease-1>")
 
-            # Setup database tables
-            self.measurement_name_entry_window()
-            self.master.wait_window(self.meas_info_window)
-
             # Start OCR function thread
-            meas_name = self.meas_name_var.get()
+            # meas_name = self.meas_name_var.get()
             meas_comment = self.meas_name_com.get()
-            self.ocr_thread = threading.Thread(target=self.call_ocr, daemon=True, args=[roi_list, variables, meas_name, meas_comment])
+            self.ocr_thread = threading.Thread(target=self.call_ocr, daemon=True, args=[roi_list, variables, self.meas_name, meas_comment])
             self.ocr_thread.start()
 
         # Stop OCR
@@ -682,6 +686,9 @@ class OCR_GUI:
         # Create a StringVar to store the measurement name and comment
         self.meas_name_var = tk.StringVar()
         self.meas_name_com = tk.StringVar()
+        
+        # Used to check if name input was successful in toggle_ocr
+        self.meas_name = None
 
         # Create a label and entry field for measurement name
         meas_name_container = ttk.Frame(self.meas_info_window)
@@ -699,14 +706,31 @@ class OCR_GUI:
         meas_comment_entry = ttk.Entry(meas_comment_container, textvariable=self.meas_name_com)
         meas_comment_entry.pack(side=tk.LEFT, padx=10, pady=10)
 
-        # Create a submit button
-        submit_button = ttk.Button(self.meas_info_window, text="Submit", command=lambda: self.meas_info_window.destroy())
+        def check_and_submit():
+
+            # Create database object to look up name
+            db = database.setup_database()
+
+            # Check if measurement with this name already exists in database
+            db.cursor.execute("SELECT COUNT(*) FROM Measurements WHERE measurement_name=?", (self.meas_name_var.get(),))
+            count = db.cursor.fetchone()[0]
+            if count > 0:
+                messagebox.showwarning("Warning", "Measurement name already exists. Please enter a different name.")
+            else:
+                self.meas_name = self.meas_name_var.get()
+                self.meas_info_window.destroy()
+
+        # Submit button calls check_and_submit
+        submit_button = ttk.Button(self.meas_info_window, text="Submit", command=check_and_submit)
         submit_button.pack(padx=10, pady=10)
 
     def call_ocr(self, roi_list, variables, meas_name, meas_comment):
+        
+        # Create database (object cannot be used outside of threaad where it has been created)
+        db = database.setup_database()
  
         # Setup database tables
-        db, measurement_id, variable_ids = database.setup_database(meas_name, meas_comment, variables)
+        measurement_id, variable_ids = db.setup_measurement(db, meas_name, meas_comment, variables)
 
         # Boolean to show and save video of ROIs if wished
         save_video = False
@@ -950,7 +974,7 @@ class OCR_GUI:
                 self.last_tvec = 0.8 * tvec + 0.2 * self.last_tvec
             
             # If surface world coordinates have been found
-            if self.saved_surfaces_counter >= 2:
+            if self.saved_surfaces_counter >= 2 and self.last_rvec is not None:
                 
                 # Get surface image coordinates
                 self.surface_img_coords = [self.find_img_coords(point_coords, self.last_rvec, self.last_tvec) for point_coords in self.surface_world_coords]
@@ -1616,8 +1640,8 @@ def resize_with_ratio(max_width, max_height, width, height):
     return resized_width, resized_height
 
 
-root = tk.Tk()
-root.state('zoomed') 
-root.bind('<Escape>', lambda e: root.quit())
-gui = OCR_GUI(root)
-root.mainloop()
+# root = tk.Tk()
+# root.state('zoomed') 
+# root.bind('<Escape>', lambda e: root.quit())
+# gui = OCR_GUI(root)
+# root.mainloop()
