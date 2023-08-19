@@ -150,10 +150,28 @@ class OCR_GUI:
                     messagebox.showerror("Error", "Exposure time must be between 1 and 999")
             except ValueError:
                 messagebox.showerror("Error", "Exposure time must be an integer")
+        
+        # Entry widget for analog gain
+        self.gain_label = ttk.Label(self.daheng_settings_frame, text="Analog gain:")
+        self.gain_label.grid(row=0, column=2, padx=5, pady=(5, 5))
+        self.gain_entry = ttk.Entry(self.daheng_settings_frame)
+        self.gain_entry.grid(row=0, column=3, padx=5, pady=(5, 5))
+        self.gain = 10
+        self.gain_entry.insert(-1, "10")
+        self.gain_entry.bind("<Return>", lambda event: on_gain_entry())
+
+        def on_gain_entry():
+            try:    
+                gain = int(self.gain_entry.get())
+                self.gain = gain
+                self.cam.Gain.set(self.gain)
+                print("Gain changed to ", self.gain)
+            except ValueError:
+                messagebox.showerror("Error", "Gain must be an integer")
 
         # Button for auto balance white
-        self.autobalancewhite_button = ttk.Button(self.daheng_settings_frame, text="Auto Balance White", command=lambda: self.cam.BalanceWhiteAuto.set(2))
-        self.autobalancewhite_button.grid(row=0, column=2, padx=15, pady=(5, 5))
+        self.autobalancewhite_button = ttk.Button(self.daheng_settings_frame, text="Auto Balance White", command=lambda: self.cam.BalanceWhiteAuto.set(1))
+        self.autobalancewhite_button.grid(row=0, column=4, padx=15, pady=(5, 5))
 
         # Method radio buttons
         self.marker_method = tk.StringVar(value="one_marker")
@@ -412,7 +430,7 @@ class OCR_GUI:
                 self.cam.TriggerMode.set(gx.GxSwitchEntry.OFF)
                 self.cam.ExposureTime.set(self.exposure * 1000)
                 # self.cam.BalanceWhiteAuto.set(1)
-                self.cam.Gain.set(10.0)
+                self.cam.Gain.set(self.gain)
 
                 # get param of improving image quality
                 if self.cam.GammaParam.is_readable():
@@ -660,7 +678,6 @@ class OCR_GUI:
             self.canvas.unbind("<ButtonRelease-1>")
 
             # Start OCR function thread
-            # meas_name = self.meas_name_var.get()
             meas_comment = self.meas_name_com.get()
             self.ocr_thread = threading.Thread(target=self.call_ocr, daemon=True, args=[roi_list, variables, self.meas_name, meas_comment])
             self.ocr_thread.start()
@@ -730,7 +747,7 @@ class OCR_GUI:
         db = database.setup_database()
  
         # Setup database tables
-        measurement_id, variable_ids = db.setup_measurement(db, meas_name, meas_comment, variables)
+        measurement_id, variable_ids = db.setup_measurement(meas_name, meas_comment, variables)
 
         # Boolean to show and save video of ROIs if wished
         save_video = False
@@ -1640,8 +1657,8 @@ def resize_with_ratio(max_width, max_height, width, height):
     return resized_width, resized_height
 
 
-# root = tk.Tk()
-# root.state('zoomed') 
-# root.bind('<Escape>', lambda e: root.quit())
-# gui = OCR_GUI(root)
-# root.mainloop()
+root = tk.Tk()
+root.state('zoomed') 
+root.bind('<Escape>', lambda e: root.quit())
+gui = OCR_GUI(root)
+root.mainloop()
