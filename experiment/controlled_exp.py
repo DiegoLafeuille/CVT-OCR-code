@@ -466,10 +466,8 @@ def call_ocr(img, code, reader):
         # texts = reader.readtext(
         #     img, 
         #     allowlist = '0123456789-+.', 
-        #     link_threshold=0.99, 
+        #     link_threshold=0, 
         #     detail = 0, 
-        #     width_ths = 0.99,
-        #     height_ths = 0.99,
         #     batch_size = 5,
         # )
         texts = reader.recognize(
