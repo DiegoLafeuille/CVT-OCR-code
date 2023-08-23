@@ -6,7 +6,9 @@ train_val_images
 
 # ocr results
 results.csv
-*.json
+# *.json
+petec_BP508
+
 
 # Database 
 *.db
