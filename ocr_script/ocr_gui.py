@@ -507,9 +507,11 @@ class OCR_GUI:
         print("refresh_cam_inputs")
         self.camera_inputs = self.get_available_cameras()
         self.camera_input_dropdown['values'] = self.camera_inputs
+        self.camera_input_dropdown.current(0)
+        print("Current: ", self.camera_input_dropdown.get())
 
     def update_cam_type(self):
-        print("update_cam_type")
+        print("update_cam_type: ", self.selected_cam_type)
 
         if self.selected_cam_type == "daheng":
             self.cam.stream_off()
