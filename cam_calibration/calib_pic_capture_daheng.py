@@ -4,7 +4,20 @@ import cv2
 import os
 import re
 import copy
+import argparse
 
+
+# Argument parsing
+parser = argparse.ArgumentParser(description='Capture images from a Daheng camera.')
+parser.add_argument('--camera', '-c', required= True, help='Name of the Danheng camera (camera/lens combination)')
+parser.add_argument('--exposure', '-x', default='100', help='Exposure time (1-999)[ms]')
+parser.add_argument('--gain', '-g', default='10', help='Analog gain (0.0-24.0)[dB]')
+args = parser.parse_args()
+
+# Set arguments
+camera = args.camera
+exposure = args.exposure * 1000
+gain = args.gain
 
 # Set lens name
 lens = "daheng_25mm"
@@ -30,13 +43,13 @@ if cam.PixelColorFilter.is_implemented() is False:
 cam.TriggerMode.set(gx.GxSwitchEntry.OFF)
 
 # set exposure
-cam.ExposureTime.set(150000.0)
+cam.ExposureTime.set(exposure)
 
 # # set auto white balance
 # cam.BalanceWhiteAuto.set(1)
 
 # set gain
-cam.Gain.set(10.0)
+cam.Gain.set(gain)
 
 # get param of improving image quality
 if cam.GammaParam.is_readable():

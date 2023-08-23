@@ -1,4 +1,5 @@
 import pickle
+import os
 
 def load_pickle_file(file_name):
     with open(file_name, 'rb') as f:
@@ -6,11 +7,12 @@ def load_pickle_file(file_name):
     return data
 
 def main():
-    directories = ["daheng_6mm", "daheng_6mm_old", "daheng_12mm", "daheng_12mm_old", "daheng_25mm"]
+    base_path = "cam_calibration/cameras/"
+    directories = [d for d in os.listdir(base_path) if os.path.isdir(os.path.join(base_path, d))]
     file_name = "calibration_params.pickle"  # replace this with your pickle file's name
     for directory in directories:
         print(f"\nCurrent file: {directory}")
-        content = load_pickle_file("cam_calibration/cameras/" + directory + "/" + file_name)
+        content = load_pickle_file(base_path + directory + "/" + file_name)
         print("ret: ", content["ret"])
         print("mtx: ", content["mtx"])
         print("dist: ", content["dist"])
@@ -18,3 +20,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

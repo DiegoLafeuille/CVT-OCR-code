@@ -15,13 +15,13 @@ def correct_value(value, minimum, maximum):
             print(value)
         return f"Problem: {value}"
     if minimum <= float_value <= maximum:
-        return float_value
+        return value
 
     if "." in value:
         return f"Problem: {value}"
 
     # Check all possible positions for a decimal point to see if one of them results in a value within the range
-    valid_corrections = [float(value[:i] + "." + value[i:]) for i in range(1, len(value)) if minimum <= float(value[:i] + "." + value[i:]) <= maximum]
+    valid_corrections = [value[:i] + "." + value[i:] for i in range(1, len(value)) if minimum <= float(value[:i] + "." + value[i:]) <= maximum]
 
     # If exactly one position works, return the corrected value
     if len(valid_corrections) == 1:

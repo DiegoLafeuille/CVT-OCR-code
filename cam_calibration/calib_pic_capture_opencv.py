@@ -1,9 +1,15 @@
 import cv2
 import os
 import re
+import argparse
+
+# Argument parsing
+parser = argparse.ArgumentParser(description='Capture images from a webcam.')
+parser.add_argument('--webcam', '-w', default='ELP', help='Name of the webcam.')
+args = parser.parse_args()
 
 # Set webcam name
-webcam = "ELP"
+webcam = args.webcam
 
 # Open the camera
 cap = cv2.VideoCapture(1)
@@ -38,7 +44,7 @@ while True:
     ret, frame = cap.read()
     
     # Show the frame in a window
-    resized_frame = cv2.resize(frame,(int(width/4), int(height/4)))
+    resized_frame = cv2.resize(frame, (int(width/4), int(height/4)))
     cv2.imshow("Camera", resized_frame)
     
     # Check if the user pressed the space bar
