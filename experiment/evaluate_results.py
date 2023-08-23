@@ -90,17 +90,17 @@ def barplot_results(result_dfs):
 
 def main():
 
-    ground_truths_df = pd.read_csv("experiment/ground_truths_3.csv", dtype=str)
+    ground_truths_df = pd.read_csv("experiment/ground_truths/ground_truths_3.csv", dtype=str)
     # print(ground_truths_df)
 
-    # files = list(os.walk("experiment/exp_results"))[0][2]
+    # files = list(os.walk("experiment/exp_results/systematic_exp"))[0][2]
     files = ["daheng_6mm_35_0_0_45.json", "daheng_6mm_35_0_0_45_detect_test.json"]
     # files = ["daheng_12mm_100_0_0_0.json"]
     result_dfs = []
 
     for file in files:
         
-        filepath = "experiment/exp_results/" + file
+        filepath = "experiment/exp_results/systematic_exp" + file
         parameters, df_results = import_experiment_results(filepath)
 
         print(f"File name: {file}")

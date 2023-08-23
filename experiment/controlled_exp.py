@@ -644,7 +644,7 @@ def main():
         exp = f"_exp{str(exposure)}k"
     result_filename = calib_file + "_" + distance + "_" + brightness + "_" + h_angle + "_" + v_angle + exp + ".json"
     # result_filename = calib_file + "_" + distance + "_" + brightness + "_" + h_angle + "_" + v_angle + exp + "_detect.json"
-    result_filepath = "experiment/exp_results/" + result_filename
+    result_filepath = "experiment/exp_results/systematic_exp/" + result_filename
 
     # Handle if file already exists
     if os.path.exists(result_filepath):
@@ -658,8 +658,8 @@ def main():
     cam_type = params["Camera type"]
     cam, color_correction_param, contrast_lut, gamma_lut = update_cam_input(cam_input, cam_type, calib_w, calib_h, exposure)
 
-    # Get the list of image names in the folder
-    images = os.listdir("experiment/slides_3")
+    # Get the list of image names in the folder slides_3_big for displaying slides on big secondary monitor
+    images = os.listdir("experiment/slides/slides_3_big")
     
     # # Initialize JSON file
     experiment_data = {
@@ -686,7 +686,7 @@ def main():
 
 
     # Show one slide to setup camera
-    image_path = "experiment/slides_3_big/" + images[2]
+    image_path = "experiment/slides/slides_3_big/" + images[2]
     image = cv2.imread(image_path)
     img_code = "02"
     cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
@@ -747,7 +747,7 @@ def main():
     # Print the shuffled image names
     for image in images:
 
-        image_path = "experiment/slides_3_big/" + image
+        image_path = "experiment/slides/slides_3_big/" + image
         img_code = image[:2]
 
         # if img_code < "400":

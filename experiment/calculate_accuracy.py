@@ -4,7 +4,7 @@ import json
 import os
 
 # 1. Load the ground truths from the CSV file
-ground_truths_df = pd.read_csv('experiment/ground_truths_3.csv', dtype=str)
+ground_truths_df = pd.read_csv('experiment/ground_truths/ground_truths_3.csv', dtype=str)
 ground_truths = ground_truths_df.set_index('Code').to_dict(orient='index')
 
 # 2. Define a function to calculate word accuracy
@@ -18,14 +18,14 @@ def calculate_word_accuracy(ground_truth, ocr_data):
 results = []
 
 # List of JSON files (you can modify this list as needed)
-result_files = [f for f in os.listdir("experiment/exp_results") if f.endswith('.json')]
+result_files = [f for f in os.listdir("experiment/exp_results/systematic_exp") if f.endswith('.json')]
 print(len(result_files), " files found")
 
 # 3. Load and process each JSON file
 problem_files = []
 for file_name in result_files:
     try:
-        with open("experiment/exp_results/" + file_name, 'r') as file:
+        with open("experiment/exp_results/systematic_exp" + file_name, 'r') as file:
             data = json.load(file)
     except:
         problem_files.append(file_name)
@@ -113,4 +113,4 @@ for lens, distance, brightness, h_angle, v_angle in missing_combinations:
                 })
 df = pd.concat([df, pd.DataFrame(new_rows)], ignore_index=True)
 
-df.to_csv('extended_ocr_accuracy_results.csv', index=False)
+df.to_csv('experiment/exp_results/extended_ocr_accuracy_results.csv', index=False)
