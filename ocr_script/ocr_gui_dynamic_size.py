@@ -1,3 +1,7 @@
+# For dynamic window and widget resizing (needs to come before tkinter import)
+import ctypes
+ctypes.windll.shcore.SetProcessDpiAwareness(1)
+
 import tkinter as tk
 from tkinter import ttk
 from tkinter import messagebox
@@ -108,6 +112,9 @@ class OCR_GUI:
         # Right frame
         self.right_frame = tk.Frame(master, width=self.right_frame_width)
         self.right_frame.pack(side=tk.RIGHT, fill='both', padx=15, pady=15)
+
+        # Bind the configure event for window size adjustments
+        self.master.bind("<Configure>", self.adjust_frame_sizes)
 
         ############################### Left frame ###############################
         
@@ -366,6 +373,36 @@ class OCR_GUI:
         self.master.update()
 
 
+
+    def get_current_screen_size(self):
+        # Get the coordinates of the window's top-left corner
+        x = self.master.winfo_rootx()
+        y = self.master.winfo_rooty()
+
+        monitors = screeninfo.get_monitors()
+        monitor = None
+        for m in reversed(monitors):
+            if m.x <= x <= m.width + m.x and m.y <= y <= m.height + m.y:
+                monitor = m
+        if monitor is None:
+            monitor = monitors[0]
+
+        return monitor.width, monitor.height
+
+    def adjust_frame_sizes(self, event):
+
+        if event.widget != self.master:
+            return
+        
+        # Get screen width and height
+        screen_width, screen_height = self.get_current_screen_size()
+
+        # Adjust sizes based on screen dimensions
+        self.canvas_max_width = screen_width - self.right_frame_width
+        self.canvas_max_height = screen_height - self.left_frame_parameter_height
+
+        self.left_frame.config(width=self.canvas_max_width)
+
     def get_available_cameras(self):
         # print("get_available_cameras")
 
@@ -582,8 +619,8 @@ class OCR_GUI:
         # Get the width and height of the actual image
         height, width = frame.shape[:2]
         
-        # Calculate the scale factor to keep the aspect ratio and limit the height to 200
-        scale = min(1, 200 / height)
+        # Calculate the scale factor to keep the aspect ratio and limit the height to 300
+        scale = min(1, 300 / height)
         
         # Resize the original image
         self.resize_width = int(width * scale)
@@ -876,7 +913,7 @@ class OCR_GUI:
             'variable': roi.variable.get(), 
             'ROI': roi_coords, 
             'only_numbers': roi.only_numbers.get(), 
-            'detection_method': roi.detection_dropdown.current(),
+            'detection_method': roi.detection_dropdown.get(),
             'font': img_processing.fonts[roi.font_type_dropdown.current()]} 
             for roi, roi_coords in zip(active_rois, roi_frame_coordinates)]
         

@@ -58,6 +58,6 @@ def seven_seg_pipeline(image):
 fonts = [
     Font("Default", default_pipeline, "easyocr"),
     Font("Norm. gray", normal_grayscale_pipeline, "easyocr"),
-    Font("7-segments display", seven_seg_pipeline, "tesseract"),
+    Font("7-segments", seven_seg_pipeline, "tesseract"),
     Font("None", no_processing_pipeline, "easyocr"),
 ]

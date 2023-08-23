@@ -18,7 +18,7 @@ def initialize_ocr_engines(ocr_engines):
         pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract'
         os.environ['TESSDATA_PREFIX'] = r".\ocr_script\Tesseract_sevenSegmentsLetsGoDigital\tessdata"
     
-def ocr_on_roi(frame, roi_list, cols):
+def ocr_on_roi(frame, roi_list):
 
     # Extract text from the ROIs using easyOCR
     texts = []
@@ -34,7 +34,7 @@ def ocr_on_roi(frame, roi_list, cols):
         roi_img = frame[y1:y2, x1:x2]
 
         # Crop ROI on text
-        cropped_img, _ = crop_roi(roi_img)
+        cropped_img, _ = crop_roi(roi_img, roi['detection_method'])
 
         # Process image with appropriate processing pipeline
         img_processing_pipeline =  roi['font'].proc_pipeline
@@ -46,44 +46,37 @@ def ocr_on_roi(frame, roi_list, cols):
 
         # Call ocr_function with appropriate engine
         if roi['font'].ocr_engine == "easyocr":
-            text = easyocr_ocr(processed_roi, roi['only_numbers'])
+            text = easyocr_ocr(processed_roi, roi['only_numbers'], roi['detection_method'])
         elif roi['font'].ocr_engine == "tesseract":
             text = tesseract_ocr(processed_roi, roi['only_numbers'])
         texts.append(text)
 
     return timestamp, texts
 
-def easyocr_ocr(img, only_numbers):
+def easyocr_ocr(img, only_numbers, detect_method = 0):
     
     if only_numbers:
-        texts = easyocr_reader.readtext(
-            img, 
-            allowlist = '0123456789-+.', 
-            link_threshold=0, 
-            detail = 0,
-        )
-        # texts = easyocr_reader.recognize(
-        #     img, 
-        #     batch_size = 5,
-        #     allowlist = '0123456789-+.', 
-        #     detail = 0, 
-        # )
+        allowchar = '0123456789-+.'
+    else:
+        allowchar = None
 
-    
+    # "Fastest" method 
+    if detect_method == 0:
+        texts = easyocr_reader.recognize(
+            img, 
+            batch_size = 5,
+            allowlist = allowchar, 
+            detail = 0, 
+        ) 
+    # "Best" method   
     else:
         texts = easyocr_reader.readtext(
             img, 
+            allowlist = allowchar, 
             link_threshold=0, 
-            detail = 0, 
+            detail = 0,
         )
-        # texts = easyocr_reader.recognize(
-        #     img, 
-        #     batch_size = 5,
-        #     detail = 0, 
-        #     # contrast_ths = 0.4,
-        # )
 
-    print(texts)
     text = ''.join(texts)
     return text if text else "No text recognized"
     
@@ -94,10 +87,11 @@ def tesseract_ocr(img, only_numbers):
         text = pytesseract.image_to_string(img, lang="lets", config="--psm 7")
     return text if text else "No text recognized"
 
-def crop_roi(img):
+def crop_roi(img, detect_method = 0):
 
-    return img, img
-
+    # "Best" detection method
+    if detect_method != 0:
+        return img, img
     
     # Convert the image to grayscale
     gray = np.max(img, axis=2)
@@ -121,7 +115,7 @@ def crop_roi(img):
     try:
         combined_contour = np.vstack(contours)
     except:
-        print("No contour found")
+        # print("No contour found")
         return img, img
 
     # Get the bounding rectangle of the combined contour
