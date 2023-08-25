@@ -25,7 +25,7 @@ print(len(result_files), " files found")
 problem_files = []
 for file_name in result_files:
     try:
-        with open("experiment/exp_results/systematic_exp" + file_name, 'r') as file:
+        with open("experiment/exp_results/systematic_exp/" + file_name, 'r') as file:
             data = json.load(file)
     except:
         problem_files.append(file_name)
@@ -60,7 +60,7 @@ for file_name in result_files:
                 'Processed Accuracy': accuracies['Processed']
             })
         
-print("Problem files:")
+print(f"{len(problem_files)} problem files:")
 print(problem_files)
 
 # 5. Store the results in a pandas DataFrame
