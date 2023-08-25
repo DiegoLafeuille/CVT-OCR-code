@@ -1,0 +1,255 @@
+// Microsoft Visual C++ generated resource script.
+//
+#include "resource.h"
+
+#define APSTUDIO_READONLY_SYMBOLS
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 2 resource.
+//
+#include "afxres.h"
+
+/////////////////////////////////////////////////////////////////////////////
+#undef APSTUDIO_READONLY_SYMBOLS
+
+/////////////////////////////////////////////////////////////////////////////
+// Neutral resources
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_NEU)
+LANGUAGE LANG_NEUTRAL, SUBLANG_NEUTRAL
+#pragma code_page(936)
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Dialog
+//
+
+IDD_ABOUTBOX DIALOGEX 0, 0, 235, 55
+STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "About GxSingleCamColor"
+FONT 8, "MS Shell Dlg", 0, 0, 0x1
+BEGIN
+    ICON            IDR_MAINFRAME,IDC_STATIC,11,17,20,20
+    LTEXT           "GxSingleCamColor Version 1.0 ",IDC_STATIC_PRODUCTVERSION,40,10,119,8,SS_NOPREFIX
+    LTEXT           "All rights reserved (C) 2013",IDC_STATIC_LEGALCOPYRIGHT,40,25,119,8
+    DEFPUSHBUTTON   "OK",IDOK,178,7,50,14,WS_GROUP
+END
+
+IDD_GXSINGLECAMCOLOR_DIALOG DIALOGEX 0, 0, 682, 403
+STYLE DS_SETFONT | DS_MODALFRAME | WS_MINIMIZEBOX | WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_SYSMENU
+EXSTYLE WS_EX_APPWINDOW
+CAPTION "GxSingleCamColor"
+FONT 8, "MS Shell Dlg", 0, 0, 0x1
+BEGIN
+    LTEXT           "Static",IDC_STATIC_SHOW_FRAME,14,13,441,374,0,WS_EX_CLIENTEDGE | WS_EX_STATICEDGE
+    GROUPBOX        "Device Control",IDC_STATIC,464,7,209,52
+    PUSHBUTTON      "Open Device",IDC_BTN_OPEN_DEVICE,474,18,73,15
+    PUSHBUTTON      "Close Device",IDC_BTN_CLOSE_DEVICE,594,18,71,15
+    PUSHBUTTON      "Acquisition Start",IDC_BTN_START_SNAP,474,38,74,15
+    PUSHBUTTON      "Acquisition Stop",IDC_BTN_STOP_SNAP,594,37,71,15
+    GROUPBOX        "Trigger Control",IDC_STATIC,464,63,209,89
+    LTEXT           "Trigger Mode",IDC_STATIC,474,79,49,8
+    COMBOBOX        IDC_COMBO_TRIGGER_MODE,607,75,58,62,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "Trigger Source",IDC_STATIC,474,97,56,8
+    COMBOBOX        IDC_COMBO_TRIGGER_SOURCE,607,93,58,60,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "Trigger Software",IDC_STATIC,474,117,71,8
+    PUSHBUTTON      "Send",IDC_BTN_SOFTTRIGGER,607,113,58,14
+    LTEXT           "Trigger Activation",IDC_STATIC,474,135,73,8
+    COMBOBOX        IDC_COMBO_TRIGGER_ACTIVE,607,133,58,63,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    GROUPBOX        "Base Settings",IDC_STATIC,463,157,210,61
+    LTEXT           "ExposureTime",IDC_STC_SHUTTER_SHOW,474,171,145,16
+    EDITTEXT        IDC_EDIT_SHUTTER,623,167,41,14,ES_AUTOHSCROLL
+    LTEXT           "Gain",IDC_STC_GAIN,473,200,104,8
+    EDITTEXT        IDC_EDIT_GAIN,624,199,41,14,ES_AUTOHSCROLL
+    GROUPBOX        "BalanceWhite Settings",IDC_STATIC,464,222,209,66
+    LTEXT           "BalanceWhiteAuto",IDC_STATIC,474,237,65,8
+    COMBOBOX        IDC_COMBO_AWB,607,232,58,76,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "BalanceRatioSelector",IDC_STATIC,474,255,81,8
+    COMBOBOX        IDC_COMBO_RATIO_SELECTOR,607,251,58,61,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "BalanceRatio",IDC_STATIC_WHITE_RATIO,474,272,119,10
+    EDITTEXT        IDC_EDIT_BALANCE_RATIO,607,268,58,14,ES_AUTOHSCROLL
+    GROUPBOX        "Image Processing",IDC_STATIC,464,291,209,41
+    CONTROL         "Enable",IDC_CHECK_IMAGE_IMPROVE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,473,302,40,10
+    LTEXT           "Recommendation:Set WhiteBalance first",IDC_STATIC,475,317,159,11
+    GROUPBOX        "Save Image",IDC_STATIC,464,336,209,50
+    CONTROL         "Save as BMP",IDC_CHECK_SAVE_BMP,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,474,347,57,10
+    LTEXT           "(The acquired images will be saved in the folder named""GxSingleCamColorImages ""which is in the same path with GxSingleCamColorImages.exe.)",IDC_STATIC,474,357,199,27
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// DESIGNINFO
+//
+
+#ifdef APSTUDIO_INVOKED
+GUIDELINES DESIGNINFO
+BEGIN
+    IDD_ABOUTBOX, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 228
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 48
+    END
+
+    IDD_GXSINGLECAMCOLOR_DIALOG, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 673
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 396
+    END
+END
+#endif    // APSTUDIO_INVOKED
+
+#endif    // Neutral resources
+/////////////////////////////////////////////////////////////////////////////
+
+
+/////////////////////////////////////////////////////////////////////////////
+// Chinese (Simplified, PRC) resources
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_CHS)
+LANGUAGE LANG_CHINESE, SUBLANG_CHINESE_SIMPLIFIED
+#pragma code_page(936)
+
+#ifdef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// TEXTINCLUDE
+//
+
+1 TEXTINCLUDE 
+BEGIN
+    "resource.h\0"
+END
+
+2 TEXTINCLUDE 
+BEGIN
+    "#include ""afxres.h""\r\n"
+    "\0"
+END
+
+3 TEXTINCLUDE 
+BEGIN
+    "#define _AFX_NO_SPLITTER_RESOURCES\r\n"
+    "#define _AFX_NO_OLE_RESOURCES\r\n"
+    "#define _AFX_NO_TRACKER_RESOURCES\r\n"
+    "#define _AFX_NO_PROPERTY_RESOURCES\r\n"
+    "\r\n"
+    "#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_CHS)\r\n"
+    "#ifdef _WIN32\r\n"
+    "LANGUAGE 4, 2\r\n"
+    "#pragma code_page(936)\r\n"
+    "#endif //_WIN32\r\n"
+    "#include ""res\\GxSingleCamColor.rc2""  // non-Microsoft Visual C++ edited resources\r\n"
+    "#include ""l.chs\\afxres.rc""          // Standard components\r\n"
+    "#endif\r\n"
+    "\0"
+END
+
+#endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Icon
+//
+
+// Icon with lowest ID value placed first to ensure application icon
+// remains consistent on all systems.
+IDR_MAINFRAME           ICON                    "res\\GxSingleCamColor.ico"
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// RT_MANIFEST
+//
+
+1                       RT_MANIFEST             "GxSingleCamColor.manifest"
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// String Table
+//
+
+STRINGTABLE
+BEGIN
+    IDS_ABOUTBOX            "About GxSingleCamColor(&A)..."
+END
+
+#endif    // Chinese (Simplified, PRC) resources
+/////////////////////////////////////////////////////////////////////////////
+
+
+/////////////////////////////////////////////////////////////////////////////
+// English resources
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)
+LANGUAGE LANG_ENGLISH, SUBLANG_NEUTRAL
+#pragma code_page(1252)
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Version
+//
+
+VS_VERSION_INFO VERSIONINFO
+ FILEVERSION 1,0,1912,9271
+ PRODUCTVERSION 1,0,1912,9271
+ FILEFLAGSMASK 0x3fL
+#ifdef _DEBUG
+ FILEFLAGS 0x1L
+#else
+ FILEFLAGS 0x0L
+#endif
+ FILEOS 0x4L
+ FILETYPE 0x1L
+ FILESUBTYPE 0x0L
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904b0"
+        BEGIN
+            VALUE "FileDescription", "GxSingleCamColor Microsoft"
+            VALUE "FileVersion", "1.0.1912.9271"
+            VALUE "InternalName", "GxSingleCamColor"
+            VALUE "LegalCopyright", "Copyright (C) 2012-2015"
+            VALUE "OriginalFilename", "GxSingleCamColor.EXE"
+            VALUE "ProductName", "GxSingleCamColor"
+            VALUE "ProductVersion", "1.0.1912.9271"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x409, 1200
+    END
+END
+
+#endif    // English resources
+/////////////////////////////////////////////////////////////////////////////
+
+
+
+#ifndef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 3 resource.
+//
+#define _AFX_NO_SPLITTER_RESOURCES
+#define _AFX_NO_OLE_RESOURCES
+#define _AFX_NO_TRACKER_RESOURCES
+#define _AFX_NO_PROPERTY_RESOURCES
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_CHS)
+#ifdef _WIN32
+LANGUAGE 4, 2
+#pragma code_page(936)
+#endif //_WIN32
+#include "res\GxSingleCamColor.rc2"  // non-Microsoft Visual C++ edited resources
+#include "l.chs\afxres.rc"          // Standard components
+#endif
+
+/////////////////////////////////////////////////////////////////////////////
+#endif    // not APSTUDIO_INVOKED
+

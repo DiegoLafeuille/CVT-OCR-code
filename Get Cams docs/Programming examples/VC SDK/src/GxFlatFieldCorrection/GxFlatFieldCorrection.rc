@@ -1,0 +1,252 @@
+// Microsoft Visual C++ generated resource script.
+//
+#include "resource.h"
+
+#define APSTUDIO_READONLY_SYMBOLS
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 2 resource.
+//
+#include "afxres.h"
+
+/////////////////////////////////////////////////////////////////////////////
+#undef APSTUDIO_READONLY_SYMBOLS
+
+/////////////////////////////////////////////////////////////////////////////
+// Chinese (Simplified, PRC) resources
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_CHS)
+LANGUAGE LANG_CHINESE, SUBLANG_CHINESE_SIMPLIFIED
+#pragma code_page(936)
+
+#ifdef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// TEXTINCLUDE
+//
+
+1 TEXTINCLUDE 
+BEGIN
+    "resource.h\0"
+END
+
+2 TEXTINCLUDE 
+BEGIN
+    "#include ""afxres.h""\r\n"
+    "\0"
+END
+
+3 TEXTINCLUDE 
+BEGIN
+    "#define _AFX_NO_SPLITTER_RESOURCES\r\n"
+    "#define _AFX_NO_OLE_RESOURCES\r\n"
+    "#define _AFX_NO_TRACKER_RESOURCES\r\n"
+    "#define _AFX_NO_PROPERTY_RESOURCES\r\n"
+    "\r\n"
+    "#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_CHS)\r\n"
+    "#ifdef _WIN32\r\n"
+    "LANGUAGE 4, 2\r\n"
+    "#pragma code_page(936)\r\n"
+    "#endif //_WIN32\r\n"
+    "#include ""res\\GxFlatFieldCorrection.rc2""  // non-Microsoft Visual C++ edited resources\r\n"
+    "#include ""l.chs\\afxres.rc""          // Standard components\r\n"
+    "#endif\r\n"
+    "\0"
+END
+
+#endif    // APSTUDIO_INVOKED
+
+#endif    // Chinese (Simplified, PRC) resources
+/////////////////////////////////////////////////////////////////////////////
+
+
+/////////////////////////////////////////////////////////////////////////////
+// English resources
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)
+LANGUAGE LANG_ENGLISH, SUBLANG_NEUTRAL
+#pragma code_page(1252)
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Icon
+//
+
+// Icon with lowest ID value placed first to ensure application icon
+// remains consistent on all systems.
+IDR_MAINFRAME           ICON                    "res\\GxFlatFieldCorrection.ico"
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Dialog
+//
+
+IDD_ABOUTBOX DIALOGEX 0, 0, 235, 55
+STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "About GxFlatFieldCorrection"
+FONT 8, "Microsoft Sans Serif", 400, 0, 0x0
+BEGIN
+    ICON            IDR_MAINFRAME,IDC_STATIC,11,17,21,20
+    LTEXT           "GxFlatFieldCorrection 1.0",IDC_STATIC_PRODUCTVERSION,40,10,119,8,SS_NOPREFIX
+    LTEXT           "All rights reserved (C) 2019",IDC_STATIC_LEGALCOPYRIGHT,40,25,119,8
+    DEFPUSHBUTTON   "OK",IDOK,178,7,50,14,WS_GROUP
+END
+
+IDD_GxFlatFieldCorrection_DIALOG DIALOGEX 0, 0, 679, 421
+STYLE DS_SETFONT | DS_MODALFRAME | WS_MINIMIZEBOX | WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_SYSMENU
+EXSTYLE WS_EX_APPWINDOW
+CAPTION "GxFlatFieldCorrection"
+FONT 8, "Microsoft Sans Serif", 400, 0, 0x0
+BEGIN
+    LTEXT           "static",IDC_STATIC_SHOW_FRAME,7,7,448,407,0,WS_EX_STATICEDGE
+    GROUPBOX        "Device Control",IDC_STATIC,459,7,207,52
+    PUSHBUTTON      "Open Device",IDC_BTN_OPEN_DEVICE,474,18,75,15
+    PUSHBUTTON      "Close Device",IDC_BTN_CLOSE_DEVICE,556,18,75,15
+    PUSHBUTTON      "Acquisition Start",IDC_BTN_START_SNAP,474,38,75,15
+    PUSHBUTTON      "Acquisition Stop",IDC_BTN_STOP_SNAP,556,38,75,15
+    GROUPBOX        "Feature Settings",IDC_STATIC,459,63,208,88
+    LTEXT           "ExposureTime",IDC_STC_SHUTTER_SHOW,467,77,147,12,SS_CENTERIMAGE
+    EDITTEXT        IDC_EDIT_SHUTTER,620,77,39,12,ES_AUTOHSCROLL
+    LTEXT           "Gain",IDC_STC_GAIN,467,91,104,12,SS_CENTERIMAGE
+    EDITTEXT        IDC_EDIT_GAIN,620,91,39,12,ES_AUTOHSCROLL
+    LTEXT           "BalanceWhiteAuto",IDC_STATIC,467,105,67,12,SS_CENTERIMAGE
+    COMBOBOX        IDC_COMBO_AWB,600,105,59,76,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "BalanceRatioSelector",IDC_STATIC,467,119,91,12,SS_CENTERIMAGE
+    COMBOBOX        IDC_COMBO_RATIO_SELECTOR,620,119,39,61,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "BalanceRatio",IDC_STATIC_WHITE_RATIO,467,133,119,12,SS_CENTERIMAGE
+    EDITTEXT        IDC_EDIT_BALANCE_RATIO,620,133,39,12,ES_AUTOHSCROLL
+    GROUPBOX        "FFC Settings",IDC_STATIC,459,154,209,147
+    CONTROL         "Expected Gray Value",IDC_CHECK_GRAY,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,486,205,92,10
+    CONTROL         "",IDC_SLIDER_GRAY,"msctls_trackbar32",TBS_BOTH | TBS_NOTICKS | WS_TABSTOP,480,218,120,15
+    EDITTEXT        IDC_EDIT_GRAY,601,218,40,15,ES_AUTOHSCROLL | ES_NUMBER
+    CONTROL         "",IDC_SPIN_EXPECT_GRAY_VALUE,"msctls_updown32",UDS_SETBUDDYINT | UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS,629,218,11,15
+    PUSHBUTTON      "Acquisition of Dark Field Images",IDC_BUTTON_ACQUIRE_DARK_IMG,489,246,139,14
+    PUSHBUTTON      "Acquisition of Bright Field Images",IDC_BUTTON_ACQUIRE_BRIGHT_IMG,489,264,139,14
+    PUSHBUTTON      "Execute FFC",IDC_BUTTON_EXECUTE_FFC,527,282,58,14
+    CONTROL         "Preview",IDC_CHECK_PREVIEW,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,587,282,40,14
+    GROUPBOX        "Load/Save FFC Data",IDC_STATIC,459,305,211,36
+    PUSHBUTTON      "Load From File",IDC_BUTTON_READ,499,319,60,15
+    PUSHBUTTON      "Save To File",IDC_BUTTON_WRITE,577,319,60,15
+    GROUPBOX        "FFC Prompt Information",IDC_STATIC,459,347,211,66
+    CONTROL         "",IDC_SLIDER_FRAME_NUM,"msctls_trackbar32",TBS_AUTOTICKS | WS_TABSTOP,516,168,125,19
+    LTEXT           "Frame Count",IDC_STATIC_FRAME_NUM,466,167,47,15,SS_CENTERIMAGE
+    LTEXT           "255",IDC_STATIC,582,237,13,8,SS_CENTERIMAGE
+    LTEXT           "0",IDC_STATIC,485,237,13,8,SS_CENTERIMAGE
+    CTEXT           "16",IDC_STATIC,629,191,9,8,SS_CENTERIMAGE
+    CTEXT           "8",IDC_STATIC,602,191,9,8,SS_CENTERIMAGE
+    CTEXT           "4",IDC_STATIC,575,191,9,8,SS_CENTERIMAGE
+    CTEXT           "2",IDC_STATIC,548,191,9,8,SS_CENTERIMAGE
+    CTEXT           "1",IDC_STATIC,521,191,9,8,SS_CENTERIMAGE
+    LTEXT           "",IDC_STATIC_PROMPT_INFOR,466,357,199,49
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Version
+//
+
+VS_VERSION_INFO VERSIONINFO
+ FILEVERSION 1,0,1912,9271
+ PRODUCTVERSION 1,0,1912,9271
+ FILEFLAGSMASK 0x3fL
+#ifdef _DEBUG
+ FILEFLAGS 0x1L
+#else
+ FILEFLAGS 0x0L
+#endif
+ FILEOS 0x4L
+ FILETYPE 0x1L
+ FILESUBTYPE 0x0L
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "000904b0"
+        BEGIN
+            VALUE "FileDescription", "GxFlatFieldCorrection Microsoft"
+            VALUE "FileVersion", "1.0.1912.9271"
+            VALUE "InternalName", "GxFlatFieldCorrection"
+            VALUE "LegalCopyright", "Copyright (C) 2019-2020"
+            VALUE "OriginalFilename", "GxFlatFieldCorrection.EXE"
+            VALUE "ProductName", "GxFlatFieldCorrection.EXE"
+            VALUE "ProductVersion", "1.0.1912.9271"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x9, 1200
+    END
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// DESIGNINFO
+//
+
+#ifdef APSTUDIO_INVOKED
+GUIDELINES DESIGNINFO
+BEGIN
+    IDD_ABOUTBOX, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 228
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 48
+    END
+
+    IDD_GxFlatFieldCorrection_DIALOG, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 673
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 414
+    END
+END
+#endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// RT_MANIFEST
+//
+
+1                       RT_MANIFEST             "GxFlatFieldCorrection.manifest"
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// String Table
+//
+
+STRINGTABLE
+BEGIN
+    IDS_ABOUTBOX            "About GxFlatFieldCorrection(&A)..."
+END
+
+#endif    // English resources
+/////////////////////////////////////////////////////////////////////////////
+
+
+
+#ifndef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 3 resource.
+//
+#define _AFX_NO_SPLITTER_RESOURCES
+#define _AFX_NO_OLE_RESOURCES
+#define _AFX_NO_TRACKER_RESOURCES
+#define _AFX_NO_PROPERTY_RESOURCES
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_CHS)
+#ifdef _WIN32
+LANGUAGE 4, 2
+#pragma code_page(936)
+#endif //_WIN32
+#include "res\GxFlatFieldCorrection.rc2"  // non-Microsoft Visual C++ edited resources
+#include "l.chs\afxres.rc"          // Standard components
+#endif
+
+/////////////////////////////////////////////////////////////////////////////
+#endif    // not APSTUDIO_INVOKED
+

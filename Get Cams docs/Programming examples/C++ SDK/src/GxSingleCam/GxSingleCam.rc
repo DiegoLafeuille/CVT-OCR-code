@@ -1,0 +1,237 @@
+// Microsoft Visual C++ generated resource script.
+//
+#include "resource.h"
+
+#define APSTUDIO_READONLY_SYMBOLS
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 2 resource.
+//
+#ifndef APSTUDIO_INVOKED
+#include "targetver.h"
+#endif
+#include "afxres.h"
+
+/////////////////////////////////////////////////////////////////////////////
+#undef APSTUDIO_READONLY_SYMBOLS
+
+/////////////////////////////////////////////////////////////////////////////
+// Chinese (Simplified, PRC) resources
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_CHS)
+LANGUAGE LANG_CHINESE, SUBLANG_CHINESE_SIMPLIFIED
+#pragma code_page(936)
+
+#ifdef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// TEXTINCLUDE
+//
+
+1 TEXTINCLUDE 
+BEGIN
+    "resource.h\0"
+END
+
+2 TEXTINCLUDE 
+BEGIN
+    "#ifndef APSTUDIO_INVOKED\r\n"
+    "#include ""targetver.h""\r\n"
+    "#endif\r\n"
+    "#include ""afxres.h""\r\n"
+    "\0"
+END
+
+3 TEXTINCLUDE 
+BEGIN
+    "#define _AFX_NO_SPLITTER_RESOURCES\r\n"
+    "#define _AFX_NO_OLE_RESOURCES\r\n"
+    "#define _AFX_NO_TRACKER_RESOURCES\r\n"
+    "#define _AFX_NO_PROPERTY_RESOURCES\r\n"
+    "\r\n"
+    "#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)\r\n"
+    "LANGUAGE 9, 1\r\n"
+    "#pragma code_page(1252)\r\n"
+    "#include ""res\\GxSingleCam.rc2""  // non-Microsoft Visual C++ edited resources\r\n"
+    "#include ""afxres.rc""     // Standard components\r\n"
+    "#endif\r\n"
+    "\0"
+END
+
+#endif    // APSTUDIO_INVOKED
+
+#endif    // Chinese (Simplified, PRC) resources
+/////////////////////////////////////////////////////////////////////////////
+
+
+/////////////////////////////////////////////////////////////////////////////
+// English (United States) resources
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)
+LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
+#pragma code_page(1252)
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Icon
+//
+
+// Icon with lowest ID value placed first to ensure application icon
+// remains consistent on all systems.
+IDR_MAINFRAME           ICON                    "res\\GxSingleCam.ico"
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Version
+//
+
+VS_VERSION_INFO VERSIONINFO
+ FILEVERSION 1,0,1912,9131
+ PRODUCTVERSION 1,0,1912,9131
+ FILEFLAGSMASK 0x3fL
+#ifdef _DEBUG
+ FILEFLAGS 0x1L
+#else
+ FILEFLAGS 0x0L
+#endif
+ FILEOS 0x4L
+ FILETYPE 0x1L
+ FILESUBTYPE 0x0L
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040903a8"
+        BEGIN
+            VALUE "FileDescription", "GxSingleCam Microsoft Basic Application"
+            VALUE "FileVersion", "1.0.1912.9131"
+            VALUE "InternalName", "GxSingleCam.exe"
+            VALUE "LegalCopyright", "Copyright (C)  2016"
+            VALUE "OriginalFilename", "GxSingleCam.exe"
+            VALUE "ProductName", "GxSingleCam Application"
+            VALUE "ProductVersion", "1.0.1912.9131"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x409, 936
+    END
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Dialog
+//
+
+IDD_ABOUTBOX DIALOGEX 0, 0, 170, 62
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "About GxSingleCam"
+FONT 9, "MS Shell Dlg", 0, 0, 0x1
+BEGIN
+    ICON            IDR_MAINFRAME,IDC_STATIC,14,14,20,20
+    LTEXT           "GxSingleCam Version 1.0 ",IDC_STATIC_PRODUCTVERSION,42,14,114,8,SS_NOPREFIX
+    LTEXT           "Copyright (C) 2015",IDC_STATIC_LEGALCOPYRIGHT,42,26,114,8
+    DEFPUSHBUTTON   "OK",IDOK,113,41,50,14,WS_GROUP
+END
+
+IDD_GXSINGLECAM_DIALOG DIALOGEX 0, 0, 545, 346
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_MINIMIZEBOX | WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_SYSMENU
+EXSTYLE WS_EX_APPWINDOW
+CAPTION "GxSingleCam"
+FONT 9, "MS Shell Dlg", 0, 0, 0x1
+BEGIN
+    PUSHBUTTON      "Open Device",IDC_BTN_OPEN_DEVICE,346,17,76,14
+    PUSHBUTTON      "Close Device",IDC_BTN_CLOSE_DEVICE,451,17,76,14
+    PUSHBUTTON      "Acquisition Start",IDC_BTN_START_SNAP,346,41,76,14
+    PUSHBUTTON      "Acquisition Stop",IDC_BTN_STOP_SNAP,451,41,76,14
+    COMBOBOX        IDC_COMBO_TRIGGER_MODE,466,77,61,55,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        IDC_COMBO_TRIGGER_SOURCE,466,97,61,53,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    PUSHBUTTON      "TriggerSoftware",IDC_BTN_SOFTTRIGGER,466,117,61,14
+    COMBOBOX        IDC_COMBO_TRIGGER_ACTIVE,466,139,61,53,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    EDITTEXT        IDC_EDIT_SHUTTER,490,176,37,14,ES_AUTOHSCROLL
+    EDITTEXT        IDC_EDIT_GAIN,490,193,37,14,ES_AUTOHSCROLL
+    COMBOBOX        IDC_COMBO_BALANCE_WHITE_AUTO,466,227,61,62,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        IDC_COMBO_BALANCE_WHITE_SELECT,466,247,61,66,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    EDITTEXT        IDC_EDIT_BALANCE_WHITE_SERISE,490,268,37,14,ES_AUTOHSCROLL
+    CONTROL         "Save as BMP",IDC_CHECK_SAVE_BMP,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,346,302,60,10
+    CONTROL         "",IDC_SHOW_PICTURE_STATIC,"Static",SS_BLACKFRAME,7,7,329,332
+    GROUPBOX        "Device Control",IDC_STATIC,338,7,197,53
+    GROUPBOX        "Trigger Control",IDC_STATIC,338,64,197,95
+    GROUPBOX        "Basic Parameter settings",IDC_STATIC,338,163,197,51
+    GROUPBOX        "WhiteBalance Adjustment",IDC_STATIC,338,218,197,68
+    GROUPBOX        "Image Saving",IDC_STATIC,338,291,197,48
+    LTEXT           "(The acquired images will be saved in the foler named ""GxSingleCam"" which is in the same path with the application of GxSingleCam.exe.)",IDC_STATIC,355,313,172,24
+    LTEXT           "BalanceRationSelector",IDC_STATIC,346,249,78,8
+    LTEXT           "BalanceRation",IDC_STATIC_BALANCE_RATIO,346,271,139,8
+    LTEXT           "BalanceWhiteAuto",IDC_STATIC,346,229,59,8
+    LTEXT           "ExposureTime",IDC_STATIC_SHUTTER_TIME,346,178,138,8
+    LTEXT           "Gain",IDC_STATIC_GAIN,346,195,138,8
+    LTEXT           "Trigger Mode",IDC_STATIC,346,80,52,8
+    LTEXT           "Trigger Source",IDC_STATIC,346,101,52,8
+    LTEXT           "TriggerSoftware",IDC_STATIC,346,121,52,8
+    LTEXT           "TriggerActivation",IDC_STATIC,346,141,58,8
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// DESIGNINFO
+//
+
+#ifdef APSTUDIO_INVOKED
+GUIDELINES DESIGNINFO
+BEGIN
+    IDD_ABOUTBOX, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 163
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 55
+    END
+
+    IDD_GXSINGLECAM_DIALOG, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 538
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 339
+    END
+END
+#endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// String Table
+//
+
+STRINGTABLE
+BEGIN
+    IDS_ABOUTBOX            "About GxSingleCam(&A)..."
+END
+
+#endif    // English (United States) resources
+/////////////////////////////////////////////////////////////////////////////
+
+
+
+#ifndef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 3 resource.
+//
+#define _AFX_NO_SPLITTER_RESOURCES
+#define _AFX_NO_OLE_RESOURCES
+#define _AFX_NO_TRACKER_RESOURCES
+#define _AFX_NO_PROPERTY_RESOURCES
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)
+LANGUAGE 9, 1
+#pragma code_page(1252)
+#include "res\GxSingleCam.rc2"  // non-Microsoft Visual C++ edited resources
+#include "afxres.rc"     // Standard components
+#endif
+
+/////////////////////////////////////////////////////////////////////////////
+#endif    // not APSTUDIO_INVOKED
+
