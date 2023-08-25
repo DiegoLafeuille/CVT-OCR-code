@@ -1,4 +1,4 @@
 @echo off
 cd "%~dp0"
-.\venv\Scripts\python.exe ".\ocr_script\main.py"
-pause
+.\venv\Scripts\pythonw.exe ".\ocr_script\main.py"
+@REM pause

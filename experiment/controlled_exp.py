@@ -501,7 +501,7 @@ def close_cam(cam, cam_type):
 
 def display_results(filepath):
 
-    ground_truths_df = pd.read_csv("experiment/ground_truths_3.csv", dtype=str)
+    ground_truths_df = pd.read_csv("experiment/ground_truths/ground_truths_3.csv", dtype=str)
     _, df_results = import_experiment_results(filepath)
 
     for index, slide in df_results.iterrows():
@@ -642,9 +642,9 @@ def main():
     exp = ""
     if exposure != 100:
         exp = f"_exp{str(exposure)}k"
-    result_filename = calib_file + "_" + distance + "_" + brightness + "_" + h_angle + "_" + v_angle + exp + ".json"
+    result_filename = calib_file + "_" + distance + "_" + brightness + "_" + h_angle + "_" + v_angle + exp + "_lets_go_digital.json"
     # result_filename = calib_file + "_" + distance + "_" + brightness + "_" + h_angle + "_" + v_angle + exp + "_detect.json"
-    result_filepath = "experiment/exp_results/systematic_exp/" + result_filename
+    result_filepath = "experiment/exp_results/LetsGoDigitalFont/" + result_filename
 
     # Handle if file already exists
     if os.path.exists(result_filepath):
@@ -750,8 +750,8 @@ def main():
         image_path = "experiment/slides/slides_3_big/" + image
         img_code = image[:2]
 
-        # if img_code < "400":
-        #     continue
+        if img_code[0] != '4':
+            continue
 
         image = cv2.imread(image_path)
         cv2.cvtColor(image, cv2.COLOR_BGR2RGB) 

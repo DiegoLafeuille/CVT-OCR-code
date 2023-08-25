@@ -95,6 +95,20 @@ class OCRDatabase:
         self.cursor.execute("SELECT measurement_name FROM Measurements WHERE measurement_id = ?", (measurement_id,))
         return self.cursor.fetchone()[0]
 
+    def get_variable_name_by_id(self, variable_id):
+        """
+        Fetch the variable name associated with a given variable ID.
+
+        :param variable_id: ID of the variable.
+        :return: Name of the variable.
+        """
+        self.cursor.execute("SELECT variable_name FROM Variables WHERE variable_id=?", (variable_id,))
+        result = self.cursor.fetchone()
+        if result:
+            return result[0]
+        else:
+            return None
+
     def get_variable_names_by_measurement_id(self, measurement_id):
         self.cursor.execute('''SELECT Variables.variable_id, Variables.variable_name
                                   FROM Variables 
@@ -123,6 +137,16 @@ class OCRDatabase:
     def get_measurement_id_by_variable_id(self, variable_id):
         self.cursor.execute("SELECT measurement_id FROM Variables WHERE variable_id = ?", (variable_id,))
         return self.cursor.fetchone()[0]
+
+
+
+
+
+
+
+
+
+
 
 def setup_database():
     

@@ -711,7 +711,7 @@ class OCR_GUI:
 
     def call_ocr(self, roi_list, variables, meas_name, meas_comment):
         
-        # Create database (object cannot be used outside of threaad where it has been created)
+        # Create database (object cannot be used outside of thread where it has been created)
         db = database.setup_database()
  
         # Setup database tables
@@ -743,7 +743,7 @@ class OCR_GUI:
             # Call OCR function
             self.last_call_time = time.time()
             timestamp, values = ocr_on_roi(frame, roi_list)
-            # print("process_webcam_feed time = ", time.time() - self.last_call_time)
+            print("process_webcam_feed time = ", time.time() - self.last_call_time)
 
             # Save results to database
             for value, var_id in zip(values, variable_ids):
