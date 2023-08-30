@@ -106,6 +106,61 @@ def generate_3_numbers_image(numbers, font_path, background_color, text_color):
     
     return image
 
+def generate_25_numbers_image(numbers):
+
+    # Ensure that there are 25 numbers
+    if len(numbers) != 25:
+        raise ValueError("The numbers list should have exactly 25 numbers.")
+        
+    # Create a new image
+    image_size = (600, 700)
+    image = Image.new('RGB', image_size)
+    
+    # Fill the top 200 pixels with the specified background color for the number
+    top_background = Image.new('RGB', (image_size[0], 200), (235,235,235))
+    image.paste(top_background, (0, 0))
+    
+    # Fill the bottom 500 pixels with white background for the Charuco board
+    bottom_background = Image.new('RGB', (image_size[0], 500), (255, 255, 255))
+    image.paste(bottom_background, (0, 200))
+    
+    # Load fonts with different sizes
+    font = ImageFont.truetype("experiment/fonts/micross.ttf", 18)
+
+    # Calculate the total width required for 5 numbers
+    total_numbers_width = 5 * 50  # Assuming 50 pixels width per number
+    total_gaps_width = 4 * 40  # 4 gaps of 40 pixels width
+    total_width = total_numbers_width + total_gaps_width
+    
+    # Calculate starting x-coordinate to center the columns
+    x_start = (image_size[0] - total_width) // 2
+    
+    # Starting y-coordinate and gaps remain the same
+    y_start = 10
+    y_gap = 40
+    
+    # Draw each number
+    draw = ImageDraw.Draw(image)
+    for i, num in enumerate(numbers):
+        x = x_start + (i % 5) * 90  # 90 pixels (50 for number + 40 gap)
+        y = y_start + (i // 5) * y_gap
+        draw.text((x, y), str(num), fill="black", font=font)
+
+    # Load the charuco board image
+    charuco_board_path = "aruco_patterns/charuco_boards/charuco_4x4_DICT_4X4_1000_sl20_ml14.png"
+    charuco_board = Image.open(charuco_board_path)
+    charuco_board = charuco_board.resize((400, 400))
+    
+    # Calculate the position to place the charuco board
+    board_width, board_height = charuco_board.size
+    board_x = (image_size[0] - board_width) // 2
+    board_y = 450 - board_height // 2
+    
+    # Paste the charuco board at the bottom and centered
+    image.paste(charuco_board, (board_x, board_y))
+    
+    return image
+
 
 
 def read_numbers():
@@ -375,6 +430,18 @@ def create_slides_3by3():
 
     print(f"Total number of slides is {counter}")
 
+def create_slide_25numbers():
+    
+    nums = []
+    for i in range(25):
+        num = random.randint(0, 9999)
+        str_num = str(num).zfill(4)
+        final_str_num = str_num[:-1] + "." + str_num[-1]
+        nums.append(final_str_num)
+    
+    image = generate_25_numbers_image(nums)
+    image.save("experiment/slides/detect_performance_slide.png")
+    print('Slide saved')
             
 
 def main():
@@ -382,7 +449,8 @@ def main():
     # mode = "create"
     # mode = "read"
     # mode = "walkiria"
-    mode = "3by3"
+    # mode = "3by3"
+    mode = "25_numbers"
 
     if mode == "create":
         create_numbers()
@@ -392,6 +460,8 @@ def main():
         create_slides_walkiria() 
     elif mode == "3by3":
         create_slides_3by3()
+    elif mode == "25_numbers":
+        create_slide_25numbers()
     
 
 if __name__ == '__main__':
