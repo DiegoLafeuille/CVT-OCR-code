@@ -141,13 +141,6 @@ class OCRDatabase:
 
 
 
-
-
-
-
-
-
-
 def setup_database():
     
     # Connect to database and create tables if non-existent

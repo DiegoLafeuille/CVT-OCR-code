@@ -96,24 +96,26 @@ class OCR_GUI:
         screen_height = self.master.winfo_screenheight()
 
         # Adjust sizes based on screen dimensions
-        self.right_frame_width = 650
+        self.right_frame_width = 550
         self.left_frame_parameter_height = 240
         self.canvas_max_width = screen_width - self.right_frame_width
         self.canvas_max_height = screen_height - self.left_frame_parameter_height
 
         # Left frame
         self.left_frame = tk.Frame(master, width=self.canvas_max_width)
-        self.left_frame.pack(side=tk.LEFT, fill='both', padx=15, pady=10)
+        # self.left_frame.pack(side=tk.LEFT, fill='both', padx=15, pady=10)
+        self.left_frame.place(x=0, y=0, width=self.canvas_max_width, relheight=1)
 
         # Right frame
         self.right_frame = tk.Frame(master, width=self.right_frame_width)
-        self.right_frame.pack(side=tk.RIGHT, fill='both', padx=15, pady=15)
+        # self.right_frame.pack(side=tk.RIGHT, fill=tk.Y, padx=15, pady=15)
+        self.right_frame.place(x=self.canvas_max_width, y=0, width=self.right_frame_width, relheight=1)
 
         ############################### Left frame ###############################
         
         # Creating radiobuttons to choose camera type
         self.general_params_frame = tk.Frame(self.left_frame, highlightbackground = "grey", highlightthickness = 1)
-        self.general_params_frame.pack(side=tk.TOP)
+        self.general_params_frame.pack(side=tk.TOP, padx=15, pady=15)
 
         # Camera type radio buttons
         self.cam_type = tk.StringVar(value="daheng")
@@ -217,7 +219,7 @@ class OCR_GUI:
 
         # Camera calibration dropdown menu
         self.cam = None
-        self.cam_calib_label = ttk.Label(self.parameters_frame, text="Calibration folder:")
+        self.cam_calib_label = ttk.Label(self.parameters_frame, text="Calibration file:")
         self.cam_calib_label.grid(row=1, column=0, padx=5, pady=5)
         self.calibration_names = [entry for entry in os.listdir("cam_calibration/cameras") if os.path.isdir(os.path.join("cam_calibration/cameras", entry))]
         self.calibration_name_dropdown = ttk.Combobox(self.parameters_frame, value=self.calibration_names)
@@ -233,7 +235,7 @@ class OCR_GUI:
         self.frequency = 500
         self.frequency_entry.insert(-1, "500")
         self.frequency_entry.bind("<Return>", lambda event: on_frequency_entry())
-        self.frequency_entry.grid(row=2, column=1, padx=5, pady=5)
+        self.frequency_entry.grid(row=2, column=1, padx=5, pady=(5,20))
 
         def on_frequency_entry():
             try:
@@ -288,19 +290,20 @@ class OCR_GUI:
 
         # Charuco board width and height inputs
         self.charuco_size_label = ttk.Label(self.parameters_frame, text="Board size [w-h]:")
-        self.charuco_size_label.grid(row=6, column=0, padx=5, pady=(5,20))
         self.charuco_width_entry = ttk.Entry(self.parameters_frame)
-        self.charuco_width = 4
-        self.charuco_width_entry.insert(-1, "4")
+        self.charuco_width = 3
+        self.charuco_width_entry.insert(-1, "3")
         self.charuco_width_entry.bind("<Return>", lambda event: on_charuco_width_entry())
         self.charuco_width_entry.bind("<Return>", lambda event: on_charuco_height_entry(), add='+')
-        self.charuco_width_entry.grid(row=6, column=1, padx=5, pady=(5,20))
         self.charuco_height_entry = ttk.Entry(self.parameters_frame)
-        self.charuco_height = 4
-        self.charuco_height_entry.insert(-1, "4")
+        self.charuco_height = 3
+        self.charuco_height_entry.insert(-1, "3")
         self.charuco_height_entry.bind("<Return>", lambda event: on_charuco_height_entry())
         self.charuco_height_entry.bind("<Return>", lambda event: on_charuco_width_entry(), add='+')
-        self.charuco_height_entry.grid(row=6, column=2, padx=5, pady=(5,20))
+        # # Uncomment to reveal in GUI
+        # self.charuco_size_label.grid(row=6, column=0, padx=5, pady=(5,20))
+        # self.charuco_width_entry.grid(row=6, column=1, padx=5, pady=(5,20))
+        # self.charuco_height_entry.grid(row=6, column=2, padx=5, pady=(5,20))
 
         def on_charuco_width_entry():
             try:
@@ -335,7 +338,8 @@ class OCR_GUI:
 
         # Scrollable container for list of rectangle variables
         self.list_container = tk.Frame(self.right_frame, highlightbackground = "grey", highlightthickness = 1)
-        self.list_canvas = tk.Canvas(self.list_container, width=self.right_frame_width)
+        # self.list_canvas = tk.Canvas(self.list_container, width=self.right_frame_width)
+        self.list_canvas = tk.Canvas(self.list_container)
         scrollbar = ttk.Scrollbar(self.list_container, command=self.list_canvas.yview)
         self.list_frame = tk.Frame(self.list_canvas)
         self.list_frame.bind(
@@ -346,8 +350,9 @@ class OCR_GUI:
         )
         self.list_canvas.create_window((0, 0), window=self.list_frame, anchor="nw")
         self.list_canvas.configure(yscrollcommand=scrollbar.set)
-        self.list_container.pack(side=tk.TOP, padx=15, pady=15, ipady=10)
-        self.list_canvas.pack(side = tk.LEFT, fill = "both", expand= True)
+        # self.list_container.pack(side=tk.TOP, padx=15, pady=15, ipady=10)
+        self.list_container.pack(side=tk.TOP, fill=tk.BOTH, expand=True, padx=15, pady=15)
+        self.list_canvas.pack(side = tk.LEFT, fill =tk.BOTH, expand= True)
         scrollbar.pack(side = tk.RIGHT, fill = tk.Y)
 
         # Create labels for each column
@@ -1251,6 +1256,8 @@ class OCR_GUI:
         
         # Get parameter file
         filename = filedialog.askopenfilename()
+        if filename == "":
+            return
         print("Importing parameters from ", filename)
         
         # Load the GUI parameters from the pickle file
@@ -1377,8 +1384,8 @@ def resize_with_ratio(max_width, max_height, width, height):
     return resized_width, resized_height
 
 
-root = tk.Tk()
-root.state('zoomed') 
-root.bind('<Escape>', lambda e: root.quit())
-gui = OCR_GUI(root)
-root.mainloop()
+# root = tk.Tk()
+# root.state('zoomed') 
+# root.bind('<Escape>', lambda e: root.quit())
+# gui = OCR_GUI(root)
+# root.mainloop()
