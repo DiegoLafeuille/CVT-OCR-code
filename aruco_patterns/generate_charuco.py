@@ -60,9 +60,9 @@ def main():
 
     filedir = "./aruco_patterns/charuco_boards/"
     file = f"charuco_{PW}x{PH}_{args.dictionary}_sl{square_length}_ml{marker_length}.png"
-    cv2.imwrite(filedir + file, img_board)
-    print("Board was saved to %s." % file)
-
+    
+    if not cv2.imwrite(filedir + file, img_board):
+	    raise Exception("Could not write image")
 
 if __name__ == '__main__':
     main()
