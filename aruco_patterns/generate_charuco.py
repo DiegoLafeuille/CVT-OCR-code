@@ -44,6 +44,10 @@ def main():
     parser.add_argument("-ml", "--marker-length", type=int,
                     default=14,
                     help="Marker length in mm")
+    parser.add_argument("-b", "--border", type=bool,
+                    default="False",
+                    help="Add a 15px white border around the Charuco board"
+                    )
     args = parser.parse_args()
 
     # Create a Charuco board definition.
@@ -57,6 +61,17 @@ def main():
     pixels_per_cm = 100
     pixels_per_square = int(ceil(square_length / 10.0 * pixels_per_cm))
     img_board = board.generateImage((PW * pixels_per_square, PH * pixels_per_square), marginSize=0, borderBits=1)
+
+    # Add a border of 15px if args.border is True
+    if args.border:
+        border_size = 15
+        img_board = cv2.copyMakeBorder(
+            img_board,
+            top=border_size, bottom=border_size,
+            left=border_size, right=border_size,
+            borderType=cv2.BORDER_CONSTANT,
+            value=[255, 255, 255]
+        )
 
     filedir = "./aruco_patterns/charuco_boards/"
     file = f"charuco_{PW}x{PH}_{args.dictionary}_sl{square_length}_ml{marker_length}.png"
